@@ -1,7 +1,7 @@
 <div align="center">
   <img width="220" height="220" alt="Codex Fable5" src="https://github.com/user-attachments/assets/923052d7-7a76-4791-bdab-89ebe75f01a2" />
 
-  <h1>Codex Fable5 Skill</h1>
+  <h1>FableCodex</h1>
 
   <p>
     <strong>Fable-style workflow guidance for Codex.</strong>
