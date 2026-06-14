@@ -39,57 +39,6 @@ It helps Codex work in a more structured way: inspect first, track goals, gather
 
 ---
 
-## Contents
-
-```text
-.agents/plugins/marketplace.json
-  Repo-local Codex marketplace entry.
-
-plugins/codex-fable5/
-  Marketplace plugin package.
-
-plugins/codex-fable5/skills/codex-fable5/
-  Codex skill bundled inside the plugin.
-
-plugins/codex-fable5/skills/codex-fable5/references/coverage-matrix.md
-  Source-section accountability matrix for Fable 5 adaptation.
-
-plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
-  Validates that a local source prompt's headings are accounted for by the matrix.
-
-evals/fable-style-evals.md
-  Behavioral prompts and scoring for Fable-style Codex operation.
-
-tests/test_scripts.py
-  Stdlib-only regression tests for manifests, scripts, and license text.
-
-.github/workflows/ci.yml
-  GitHub Actions CI for tests, script compilation, and coverage matrix validation.
-
-.github/CODEOWNERS, .github/dependabot.yml
-  Maintainer ownership and GitHub Actions dependency update automation.
-
-CONTRIBUTING.md, CODE_OF_CONDUCT.md, GOVERNANCE.md, SECURITY.md, SUPPORT.md, ROADMAP.md, CHANGELOG.md
-  OSS contribution, conduct, governance, security, support, planning, and release notes.
-
-docs/RELEASING.md
-  Release checklist for plugin version updates.
-
-examples/AGENTS.md
-  Optional repo guidance for persistent Fable-style behavior.
-
-examples/hooks.json
-  Optional Codex hook reminder example.
-
-examples/codex-config.litellm.toml
-  Example Codex provider config for LiteLLM.
-
-examples/litellm-fable5.yaml
-  Example LiteLLM config for Anthropic routing.
-```
-
----
-
 ## Install
 
 Use this repo directly as a local marketplace:
@@ -108,13 +57,15 @@ Restart Codex after installing or updating the plugin.
 In Codex:
 
 ```text
-Use $codex-fable5 to run this task with a Fable-style, tool-first Codex workflow.
-```
+Use $codex-fable5 to analyze this project.
 
-Convert a Claude/Fable-style prompt into Codex guidance:
+$codex-fable5로 이 프로젝트를 분석해줘.
 
-```text
-Use $codex-fable5 to convert this Claude/Fable prompt into Codex AGENTS.md guidance.
+$codex-fable5 を使って、このプロジェクトを分析してください。
+
+请使用 $codex-fable5 分析这个项目。
+
+請使用 $codex-fable5 分析這個專案。
 ```
 
 Create a simple multi-goal ledger:
@@ -148,17 +99,6 @@ Run the stdlib-only test suite:
 ```bash
 python -m unittest discover -s tests -v
 ```
-
----
-
-## Community
-
-- Read `CONTRIBUTING.md` before opening issues or pull requests.
-- Use `CODE_OF_CONDUCT.md` as the participation baseline.
-- Follow `SECURITY.md` for vulnerability reports and provider credential concerns.
-- Use `GOVERNANCE.md` and `ROADMAP.md` to understand project direction and decision-making.
-- Use `docs/RELEASING.md` when cutting plugin releases.
-
 ---
 
 ## Optional Provider Bridge
