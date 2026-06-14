@@ -57,6 +57,9 @@ plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
 evals/fable-style-evals.md
   Behavioral prompts and scoring for Fable-style Codex operation.
 
+tests/test_scripts.py
+  Stdlib-only regression tests for manifests, scripts, and license text.
+
 examples/AGENTS.md
   Optional repo guidance for persistent Fable-style behavior.
 
@@ -120,6 +123,16 @@ python plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
 ```
 
 The target is 100% source-heading accounting. That means every named source section has a Codex-native decision: implemented, adapted, unsupported, or not applicable. It does not mean model-weight parity or hidden Claude/Fable runtime parity.
+
+---
+
+## Test
+
+Run the stdlib-only test suite:
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ---
 
