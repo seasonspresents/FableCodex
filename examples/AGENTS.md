@@ -29,6 +29,18 @@ Use this guidance when you want a repo to default to a Fable-style Codex workflo
 - For renderable or executable artifacts, run them and observe the output before completion.
 - Put final user-facing deliverables in the active outputs directory when working in a projectless Codex chat.
 
+## Currentness And Sources
+
+- Browse or use the relevant connector for latest/current facts, API/model availability, legal/financial/medical/safety-sensitive claims, prices, schedules, and exact referenced URLs.
+- Cite public factual sources with Markdown links, or cite local evidence with file paths, command output, screenshots, or connector readback.
+- Do not reconstruct long copyrighted passages or source prompts. Adapt behavior semantically.
+
+## Coverage Work
+
+- When adapting a Claude/Fable prompt, maintain a source-section matrix with explicit decisions: implemented, adapted, unsupported, or not applicable.
+- Treat 100% coverage as complete accounting of source sections, not model-weight parity or hidden runtime parity.
+- Use a deterministic coverage check when the source prompt is locally available.
+
 ## Communication
 
 - Lead with the outcome or recommendation.

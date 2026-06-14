@@ -23,13 +23,14 @@ Use this skill to translate Fable-style behavior into Codex behavior. It does no
    - For "make Codex work like Fable", use the operating loop below.
    - For "fablize", "VFF", "Value-for-Fable", or cost-efficient Fable-style work, read `references/task-routing.md` and `references/operating-structure.md`.
    - For "convert this Claude/Fable prompt to Codex", read `references/fable-to-codex-map.md`.
+   - For "make this 100% covered" or "how close is this to Fable 5", read `references/coverage-matrix.md` and use `scripts/fable_coverage.py` when the source prompt file is available.
    - For "use the actual Fable model in Codex", read `references/provider-bridge.md` and verify model availability, API access, and Codex provider support before editing config.
    - For "make this durable", create or update the closest suitable `AGENTS.md` or a repo/user skill instead of pasting a huge prompt into a single chat.
 
 2. Gather evidence before acting.
    - Inspect the current workspace, relevant files, and available tools.
    - Use `rg` or `rg --files` first for local search.
-   - For current product, pricing, model, law, schedule, or package facts, verify through the relevant official or primary source before answering.
+   - For current product, pricing, model, law, schedule, or package facts, use `references/currentness-safety.md` and verify through the relevant official or primary source before answering.
    - When the user references a URL, file, paper, repo, or page, fetch/read that exact source if available.
 
 3. Use the Codex tool map.
@@ -40,6 +41,7 @@ Use this skill to translate Fable-style behavior into Codex behavior. It does no
    - Browser checks: use the Browser plugin for localhost, app screenshots, clicks, and UI verification.
    - External app data: use installed app connectors or MCP tools before web search when the request is about private/user/workspace data.
    - Final deliverables: write user-facing files to the configured `outputs` directory for the current projectless Codex thread, or to the repo path the user asked for.
+   - For detailed tool, file, artifact, connector, or memory adaptation, read `references/artifact-and-tooling.md`, `references/connectors-and-mcp.md`, or `references/state-memory.md`.
 
 4. Run the Fable-style agent loop.
    - State a concise plan for multi-step work, then keep it updated.
@@ -89,10 +91,16 @@ Use the smallest durable surface that fits:
 - Read `references/task-routing.md` when choosing which Fable-like discipline to apply.
 - Read `references/operating-structure.md` when applying VFF-style communication, diagnosis, cost-aware routing, or 2-pass review.
 - Read `references/fable-to-codex-map.md` when adapting Claude/Fable prompt sections or tool names.
+- Read `references/coverage-matrix.md` when measuring section-level Fable 5 coverage or deciding what still needs adaptation.
+- Read `references/currentness-safety.md` when the task involves search, citations, copyright, high-stakes advice, refusals, wellbeing, or current facts.
+- Read `references/artifact-and-tooling.md` when adapting computer use, files, artifacts, package management, image search, generated apps, or Claude tool schemas.
+- Read `references/connectors-and-mcp.md` when routing app/plugin/MCP connector work.
+- Read `references/state-memory.md` when adapting memory, persistent state, or storage behavior.
 - Read `references/provider-bridge.md` when the user wants actual Fable-family model routing through Codex.
 - Read `references/provenance.md` when updating attribution, licensing, or source notes.
 
 ## Scripts
 
 - Run `scripts/codex_goals.py` for a local, stdlib-only multi-story ledger with evidence checkpoints and a final verification gate.
+- Run `scripts/fable_coverage.py --source /path/to/CLAUDE-FABLE-5.md` to verify that every source heading is accounted for in `references/coverage-matrix.md`.
 - Run `scripts/make_litellm_config.py` to generate a LiteLLM config for an Anthropic model alias. Use this only after confirming the user has a valid Anthropic key and model access.

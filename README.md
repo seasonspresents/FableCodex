@@ -7,7 +7,8 @@ It does four things:
 1. Gives Codex a Fable-style, tool-first agent loop for long-horizon coding and research tasks.
 2. Adds a `fablize`-style goal ledger with evidence checkpoints and a final verification gate.
 3. Adds `Value-for-Fable`-style operating guidance: conclusion-first prose, clue-first diagnosis, cheapest measurement first, cost-aware routing, and optional 2-pass review.
-4. Documents an optional provider bridge for users who already have authorized access to a Fable-compatible Anthropic model and want to route Codex through an OpenAI-compatible gateway.
+4. Adds a section-level coverage matrix for `CLAUDE-FABLE-5.md`, including explicit Codex decisions for implemented, adapted, unsupported, and not-applicable source sections.
+5. Documents an optional provider bridge for users who already have authorized access to a Fable-compatible Anthropic model and want to route Codex through an OpenAI-compatible gateway.
 
 It does not clone or unlock the Fable 5 model. Prompting and skills can improve behavior, but actual model capability requires an actual model endpoint.
 
@@ -15,6 +16,9 @@ It does not clone or unlock the Fable 5 model. Prompting and skills can improve 
 
 - `skills/codex-fable5/`: the installable Codex skill.
 - `plugins/codex-fable5/`: plugin wrapper for distributing the skill as a Codex plugin.
+- `skills/codex-fable5/references/coverage-matrix.md`: source-section accountability matrix for Fable 5 adaptation.
+- `skills/codex-fable5/scripts/fable_coverage.py`: validates that a local source prompt's headings are accounted for by the matrix.
+- `evals/fable-style-evals.md`: behavioral prompts and scoring for Fable-style Codex operation.
 - `examples/AGENTS.md`: optional repo guidance for users who want persistent Fable-style behavior without invoking the skill every time.
 - `examples/hooks.json`: optional Codex hook reminder example.
 - `examples/codex-config.litellm.toml`: example Codex provider config for a LiteLLM gateway.
@@ -77,6 +81,17 @@ python skills/codex-fable5/scripts/codex_goals.py create --brief "Migration" \
 ```
 
 For actual model routing, read `skills/codex-fable5/references/provider-bridge.md` first. You need valid Anthropic access and a working OpenAI-compatible gateway.
+
+## Measure Fable 5 Coverage
+
+If you have a local copy of `CLAUDE-FABLE-5.md`, run:
+
+```bash
+python skills/codex-fable5/scripts/fable_coverage.py \
+  --source /path/to/CLAUDE-FABLE-5.md
+```
+
+The expected target is 100% source-heading accounting. That means every named source section has a Codex-native decision. It does not mean model-weight parity or hidden Claude/Fable runtime parity.
 
 ## Source And License
 
