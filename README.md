@@ -1,3 +1,6 @@
+<img width="400" height="400" alt="FableCodex-2" src="https://github.com/user-attachments/assets/cc3a8c78-9189-4031-8634-66744af43c0f" />
+
+
 # Codex Fable5 Skill
 
 This project packages a Codex skill that adapts Claude Fable 5 style operating guidance into Codex-native workflows.
