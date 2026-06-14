@@ -10,7 +10,7 @@
   <p>
     <img alt="Codex Skill" src="https://img.shields.io/badge/Codex-Skill-black?style=for-the-badge" />
     <img alt="Claude Style" src="https://img.shields.io/badge/Claude--style-Guidance-D97745?style=for-the-badge" />
-    <img alt="License MIT" src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" />
+    <img alt="License AGPL-3.0-or-later" src="https://img.shields.io/badge/License-AGPL--3.0--or--later-blue?style=for-the-badge" />
   </p>
 </div>
 
@@ -162,4 +162,4 @@ It paraphrases and adapts workflow ideas instead of reproducing the source promp
 
 ## License
 
-MIT. See `LICENSE`, `NOTICE`, and `skills/codex-fable5/references/provenance.md`.
+AGPL-3.0-or-later. See `LICENSE`, `NOTICE`, and `skills/codex-fable5/references/provenance.md`.
