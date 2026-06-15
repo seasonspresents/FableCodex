@@ -23,6 +23,20 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def safe_stamp() -> str:
+    return now().replace(":", "").replace("+", "Z")
+
+
+def read_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        sys.exit(
+            f"codex-fable5: {label} is not valid JSON "
+            f"({path}:{exc.lineno}:{exc.colno}: {exc.msg})."
+        )
+
+
 def write_json(path: Path, data: dict[str, Any]) -> None:
     STATE_DIR.mkdir(exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -38,7 +52,7 @@ def append_event(event: str, **fields: Any) -> None:
 def load_plan() -> dict[str, Any]:
     if not GOALS_FILE.exists():
         sys.exit("codex-fable5: no goal plan. Run `create` from the repo root first.")
-    return json.loads(GOALS_FILE.read_text(encoding="utf-8"))
+    return read_json(GOALS_FILE, "goal plan")
 
 
 def parse_goal(raw: str, index: int) -> dict[str, Any]:
@@ -72,10 +86,22 @@ def terminal_incomplete_goals(goals: list[dict[str, Any]]) -> list[dict[str, Any
     return [goal for goal in goals if goal["status"] in INCOMPLETE_TERMINAL_STATUSES]
 
 
+def archive_findings_for_force() -> None:
+    if not FINDINGS_FILE.exists():
+        return
+    archive_path = STATE_DIR / f"findings.{safe_stamp()}.archive.json"
+    FINDINGS_FILE.replace(archive_path)
+    append_event(
+        "findings_archived",
+        reason="goals_create_force",
+        path=str(archive_path),
+    )
+
+
 def blocking_findings() -> list[dict[str, Any]]:
     if not FINDINGS_FILE.exists():
         return []
-    data = json.loads(FINDINGS_FILE.read_text(encoding="utf-8"))
+    data = read_json(FINDINGS_FILE, "findings ledger")
     return [
         finding
         for finding in data.get("findings", [])
@@ -89,6 +115,8 @@ def cmd_create(args: argparse.Namespace) -> None:
     goals = [parse_goal(raw, index) for index, raw in enumerate(args.goal, 1)]
     if not goals:
         sys.exit("codex-fable5: at least one --goal is required.")
+    if args.force:
+        archive_findings_for_force()
     plan = {"brief": args.brief, "created": now(), "goals": goals}
     write_json(GOALS_FILE, plan)
     append_event("plan_created", brief=args.brief, count=len(goals))

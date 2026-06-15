@@ -26,6 +26,16 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def read_json(path: Path, label: str) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        sys.exit(
+            f"codex-fable5: {label} is not valid JSON "
+            f"({path}:{exc.lineno}:{exc.colno}: {exc.msg})."
+        )
+
+
 def write_json(path: Path, data: dict[str, Any]) -> None:
     STATE_DIR.mkdir(exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -41,7 +51,7 @@ def append_event(event: str, **fields: Any) -> None:
 def load_findings() -> dict[str, Any]:
     if not FINDINGS_FILE.exists():
         return {"created": now(), "findings": []}
-    data = json.loads(FINDINGS_FILE.read_text(encoding="utf-8"))
+    data = read_json(FINDINGS_FILE, "findings ledger")
     data.setdefault("findings", [])
     return data
 
@@ -54,7 +64,7 @@ def save_findings(data: dict[str, Any]) -> None:
 def load_goals() -> dict[str, Any] | None:
     if not GOALS_FILE.exists():
         return None
-    return json.loads(GOALS_FILE.read_text(encoding="utf-8"))
+    return read_json(GOALS_FILE, "goal plan")
 
 
 def active_goal_id() -> str:

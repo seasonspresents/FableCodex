@@ -11,6 +11,13 @@ This project uses a lightweight changelog format:
 
 ## Unreleased
 
+## 0.4.1 - 2026-06-15
+
+### Fixed
+
+- Fixed `goals create --force` so stale findings from a replaced plan are archived before they can block the new final checkpoint.
+- Fixed malformed `.codex-fable5` ledger JSON handling so CLI commands report controlled `codex-fable5` errors instead of Python tracebacks.
+
 ## 0.4.0 - 2026-06-15
 
 ### Added

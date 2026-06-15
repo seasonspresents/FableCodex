@@ -690,6 +690,124 @@ class ScriptTests(unittest.TestCase):
             )
             self.assertEqual(complete.returncode, 0, complete.stderr)
 
+    def test_force_create_archives_stale_findings_before_new_plan(self) -> None:
+        goals_script = SCRIPTS / "codex_goals.py"
+        findings_script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+
+            def run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(script), *args],
+                    cwd=cwd,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+            self.assertEqual(
+                run(
+                    goals_script,
+                    "create",
+                    "--brief",
+                    "Old",
+                    "--goal",
+                    "verify::Old final",
+                ).returncode,
+                0,
+            )
+            self.assertEqual(run(goals_script, "next").returncode, 0)
+            self.assertEqual(
+                run(
+                    findings_script,
+                    "add",
+                    "--title",
+                    "Old finding",
+                    "--evidence",
+                    "This belongs to the old forced-away plan.",
+                ).returncode,
+                0,
+            )
+
+            bad_replace = run(
+                goals_script,
+                "create",
+                "--force",
+                "--brief",
+                "Bad",
+                "--goal",
+                "missing delimiter",
+            )
+            self.assertNotEqual(bad_replace.returncode, 0)
+            self.assertTrue((cwd / ".codex-fable5" / "findings.json").exists())
+            self.assertFalse(list((cwd / ".codex-fable5").glob("findings.*.archive.json")))
+
+            replaced = run(
+                goals_script,
+                "create",
+                "--force",
+                "--brief",
+                "New",
+                "--goal",
+                "verify::New final",
+            )
+            self.assertEqual(replaced.returncode, 0, replaced.stderr)
+            self.assertTrue(list((cwd / ".codex-fable5").glob("findings.*.archive.json")))
+
+            gate = run(findings_script, "gate")
+            self.assertEqual(gate.returncode, 0, gate.stderr)
+            self.assertIn("findings gate passed", gate.stdout)
+
+            self.assertEqual(run(goals_script, "next").returncode, 0)
+            complete = run(
+                goals_script,
+                "checkpoint",
+                "--id",
+                "G001",
+                "--status",
+                "complete",
+                "--evidence",
+                "new final evidence",
+                "--verify-cmd",
+                "smoke",
+                "--verify-evidence",
+                "accepted",
+            )
+            self.assertEqual(complete.returncode, 0, complete.stderr)
+
+    def test_malformed_ledger_json_reports_controlled_error(self) -> None:
+        goals_script = SCRIPTS / "codex_goals.py"
+        findings_script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            state_dir = cwd / ".codex-fable5"
+            state_dir.mkdir()
+
+            (state_dir / "findings.json").write_text("{bad json", encoding="utf-8")
+            findings_status = subprocess.run(
+                [sys.executable, str(findings_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(findings_status.returncode, 0)
+            self.assertIn("findings ledger is not valid JSON", findings_status.stderr)
+            self.assertNotIn("Traceback", findings_status.stderr)
+
+            (state_dir / "findings.json").unlink()
+            (state_dir / "goals.json").write_text("{bad json", encoding="utf-8")
+            goals_status = subprocess.run(
+                [sys.executable, str(goals_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(goals_status.returncode, 0)
+            self.assertIn("goal plan is not valid JSON", goals_status.stderr)
+            self.assertNotIn("Traceback", goals_status.stderr)
+
     def test_litellm_config_generation(self) -> None:
         plain = self.make_litellm_config.build_config("claude-test", "test-alias")
         prefixed = self.make_litellm_config.build_config("anthropic/claude-test", "test-alias")
