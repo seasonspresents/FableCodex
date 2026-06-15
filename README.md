@@ -41,7 +41,23 @@ It helps Codex work in a more structured way: inspect first, track goals, gather
 
 ## Install
 
-Use this repo directly as a local marketplace:
+Choose one marketplace source.
+
+Stable release:
+
+```bash
+codex plugin marketplace add baskduf/FableCodex --ref v0.3.1
+codex plugin add codex-fable5@fablecodex
+```
+
+Development version:
+
+```bash
+codex plugin marketplace add baskduf/FableCodex --ref main
+codex plugin add codex-fable5@fablecodex
+```
+
+Local development:
 
 ```bash
 codex plugin marketplace add ~/Desktop/FableCodex
