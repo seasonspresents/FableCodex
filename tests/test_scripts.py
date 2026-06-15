@@ -84,6 +84,16 @@ class ScriptTests(unittest.TestCase):
         self.assertIn("AGPL-3.0-or-later", readme)
         self.assertIn("AGPL-3.0-or-later", notice)
 
+    def test_plugin_version_is_documented_in_changelog(self) -> None:
+        plugin = json.loads(
+            (ROOT / "plugins" / "codex-fable5" / ".codex-plugin" / "plugin.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+        self.assertIn(f"## {plugin['version']}", changelog)
+
     def test_oss_community_files_exist(self) -> None:
         required_paths = [
             "CODE_OF_CONDUCT.md",
