@@ -87,6 +87,30 @@ class ScriptTests(unittest.TestCase):
         self.assertIn("AGPL-3.0-or-later", readme)
         self.assertIn("AGPL-3.0-or-later", notice)
 
+    def test_readme_localizations_cover_core_workflow(self) -> None:
+        readmes = [
+            "README.md",
+            "README.ko.md",
+            "README.ja.md",
+            "README.zh-CN.md",
+            "README.zh-TW.md",
+        ]
+        required_snippets = [
+            "codex-fable5 goals create",
+            "codex-fable5 findings gate",
+            ".codex-fable5/",
+            "AGPL-3.0-or-later",
+        ]
+
+        for relative in readmes:
+            with self.subTest(path=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                for other in readmes:
+                    if other != relative:
+                        self.assertIn(other, text)
+                for snippet in required_snippets:
+                    self.assertIn(snippet, text)
+
     def test_plugin_version_is_documented_in_changelog(self) -> None:
         plugin = json.loads(
             (ROOT / "plugins" / "codex-fable5" / ".codex-plugin" / "plugin.json").read_text(

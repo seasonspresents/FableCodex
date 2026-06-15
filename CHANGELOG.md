@@ -13,6 +13,8 @@ This project uses a lightweight changelog format:
 
 ### Changed
 
+- Reworked the README around quick start, user control, goal ledgers, findings gates, command reference, local state, and explicit limitations.
+- Added localized README files for Korean, Japanese, Simplified Chinese, and Traditional Chinese (Taiwan).
 - Accounted for the `critical_child_safety_instructions` source heading in the Fable coverage matrix and mapped it to Codex-native safety guidance.
 - Added explicit conversion priorities and "do not convert" boundaries for turning Claude/Fable prompt sections into Codex-native behavior.
 - Added currentness notes for Fable/Mythos provider availability so routing examples are treated as templates unless official docs and account access prove availability.
