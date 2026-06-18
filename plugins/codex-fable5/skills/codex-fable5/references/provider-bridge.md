@@ -25,8 +25,8 @@ Generate a starter LiteLLM config:
 
 ```bash
 python3 plugins/codex-fable5/skills/codex-fable5/scripts/make_litellm_config.py \
-  --model claude-fable-5 \
-  --alias claude-fable-5 \
+  --model replace-with-current-anthropic-model \
+  --alias your-codex-model-alias \
   --output litellm-fable5.yaml
 ```
 
@@ -36,7 +36,7 @@ Put provider config in your user-level `~/.codex/config.toml`, not in a project-
 
 ```toml
 model_provider = "litellm-fable5"
-model = "claude-fable-5"
+model = "your-codex-model-alias"
 
 [model_providers.litellm-fable5]
 name = "LiteLLM Fable 5"

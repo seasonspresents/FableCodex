@@ -17,18 +17,24 @@ def normalize_status(raw: str) -> str:
 
 
 def extract_source_sections(path: Path) -> list[str]:
-    stack: list[str] = []
-    sections: list[str] = []
+    headings: list[tuple[int, str]] = []
     for line in path.read_text(encoding="utf-8").splitlines():
         match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
-        if not match:
-            continue
-        level = len(match.group(1))
-        title = match.group(2).strip()
-        stack = stack[: level - 1]
-        stack.append(title)
-        if level > 1:
-            sections.append(" > ".join(stack[1:]))
+        if match:
+            headings.append((len(match.group(1)), match.group(2).strip()))
+    if not headings:
+        return []
+
+    base_level = 1 if any(level == 1 for level, _ in headings) else min(level for level, _ in headings) - 1
+    stack: dict[int, str] = {}
+    sections: list[str] = []
+    for level, title in headings:
+        for stale_level in [item for item in stack if item >= level]:
+            del stack[stale_level]
+        stack[level] = title
+        if level > base_level:
+            parts = [stack[item] for item in sorted(stack) if base_level < item <= level]
+            sections.append(" > ".join(parts))
     return sections
 
 

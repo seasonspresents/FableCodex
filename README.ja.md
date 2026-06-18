@@ -169,7 +169,7 @@ codex-fable5 findings add \
   --title "最終検証の不足" \
   --severity high \
   --source review \
-  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py:180" \
+  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py" \
   --evidence "テスト実行の証拠がなくても final checkpoint が完了できる。"
 ```
 

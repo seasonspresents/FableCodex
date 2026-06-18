@@ -169,7 +169,7 @@ codex-fable5 findings add \
   --title "최종 검증 누락" \
   --severity high \
   --source review \
-  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py:180" \
+  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py" \
   --evidence "테스트 실행 증거가 없어도 final checkpoint가 완료될 수 있다."
 ```
 

@@ -1,7 +1,9 @@
+# Example only. Replace placeholders with a model that official Anthropic docs
+# and your account currently show as available.
 model_list:
-  - model_name: "claude-fable-5"
+  - model_name: "your-codex-model-alias"
     litellm_params:
-      model: "anthropic/claude-fable-5"
+      model: "anthropic/replace-with-current-anthropic-model"
       api_key: os.environ/ANTHROPIC_API_KEY
 
 litellm_settings:

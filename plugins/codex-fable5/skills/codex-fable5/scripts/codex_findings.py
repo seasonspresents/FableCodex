@@ -4,29 +4,70 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
+import os
 import re
 import sys
+import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback only.
+    fcntl = None
 
 STATE_DIR = Path(".codex-fable5")
 GOALS_FILE = STATE_DIR / "goals.json"
 FINDINGS_FILE = STATE_DIR / "findings.json"
 LEDGER_FILE = STATE_DIR / "ledger.jsonl"
+LOCK_FILE = STATE_DIR / "state.lock"
 
 OPEN_STATUSES = {"open"}
 BLOCKING_STATUSES = {"open", "blocked"}
 TERMINAL_STATUSES = {"resolved", "rejected"}
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+FINDING_STATUSES = {"open", "blocked", "resolved", "rejected"}
+FINDING_REQUIRED_FIELDS = {"id", "goal", "title", "severity", "source", "status", "evidence"}
+LOCK_TIMEOUT_SECONDS = 30.0
 
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def read_json(path: Path, label: str) -> dict[str, Any]:
+@contextmanager
+def locked_state() -> Iterator[None]:
+    STATE_DIR.mkdir(exist_ok=True)
+    if fcntl is None:
+        fallback = STATE_DIR / "state.lockdir"
+        deadline = time.monotonic() + LOCK_TIMEOUT_SECONDS
+        while True:
+            try:
+                fallback.mkdir()
+                break
+            except FileExistsError:
+                if time.monotonic() >= deadline:
+                    sys.exit(f"codex-fable5: timed out waiting for state lock ({fallback}).")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fallback.rmdir()
+        return
+
+    with LOCK_FILE.open("a", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def read_json(path: Path, label: str) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -38,7 +79,19 @@ def read_json(path: Path, label: str) -> dict[str, Any]:
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
     STATE_DIR.mkdir(exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp_name = ""
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        dir=STATE_DIR,
+        prefix=f".{path.name}.",
+        delete=False,
+    ) as handle:
+        tmp_name = handle.name
+        handle.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    Path(tmp_name).replace(path)
 
 
 def append_event(event: str, **fields: Any) -> None:
@@ -48,12 +101,45 @@ def append_event(event: str, **fields: Any) -> None:
         handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def require_object(value: Any, path: Path, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        sys.exit(f"codex-fable5: {label} must be a JSON object ({path}).")
+    return value
+
+
+def validate_findings(data: dict[str, Any], path: Path, label: str) -> dict[str, Any]:
+    data.setdefault("findings", [])
+    findings = data["findings"]
+    if not isinstance(findings, list):
+        sys.exit(f"codex-fable5: {label} field 'findings' must be a list ({path}).")
+    for index, finding in enumerate(findings, 1):
+        if not isinstance(finding, dict):
+            sys.exit(f"codex-fable5: {label} finding {index} must be an object ({path}).")
+        missing = sorted(FINDING_REQUIRED_FIELDS - finding.keys())
+        if missing:
+            fields = ", ".join(missing)
+            sys.exit(f"codex-fable5: {label} finding {index} is missing {fields} ({path}).")
+        status = finding.get("status")
+        if not isinstance(status, str) or status not in FINDING_STATUSES:
+            sys.exit(f"codex-fable5: {label} finding {index} has invalid status {status!r} ({path}).")
+    return data
+
+
+def validate_goals(data: dict[str, Any], path: Path, label: str) -> dict[str, Any]:
+    goals = data.get("goals")
+    if not isinstance(goals, list):
+        sys.exit(f"codex-fable5: {label} field 'goals' must be a list ({path}).")
+    for index, goal in enumerate(goals, 1):
+        if not isinstance(goal, dict):
+            sys.exit(f"codex-fable5: {label} goal {index} must be an object ({path}).")
+    return data
+
+
 def load_findings() -> dict[str, Any]:
     if not FINDINGS_FILE.exists():
         return {"created": now(), "findings": []}
-    data = read_json(FINDINGS_FILE, "findings ledger")
-    data.setdefault("findings", [])
-    return data
+    data = require_object(read_json(FINDINGS_FILE, "findings ledger"), FINDINGS_FILE, "findings ledger")
+    return validate_findings(data, FINDINGS_FILE, "findings ledger")
 
 
 def save_findings(data: dict[str, Any]) -> None:
@@ -64,7 +150,8 @@ def save_findings(data: dict[str, Any]) -> None:
 def load_goals() -> dict[str, Any] | None:
     if not GOALS_FILE.exists():
         return None
-    return read_json(GOALS_FILE, "goal plan")
+    data = require_object(read_json(GOALS_FILE, "goal plan"), GOALS_FILE, "goal plan")
+    return validate_goals(data, GOALS_FILE, "goal plan")
 
 
 def active_goal_id() -> str:
@@ -120,36 +207,37 @@ def format_finding(finding: dict[str, Any]) -> str:
 
 
 def cmd_add(args: argparse.Namespace) -> None:
-    data = load_findings()
-    finding_id = next_finding_id(data["findings"])
-    goal = args.goal.strip() or active_goal_id()
-    title = require_text(args.title, "--title")
-    evidence = require_text(args.evidence, "--evidence")
-    finding = {
-        "id": finding_id,
-        "goal": goal,
-        "title": title,
-        "severity": args.severity,
-        "source": args.source,
-        "status": "open",
-        "location": args.location.strip(),
-        "evidence": evidence,
-        "resolution": "",
-        "verify_cmd": "",
-        "verify_evidence": "",
-        "created": now(),
-        "updated": "",
-    }
-    data["findings"].append(finding)
-    save_findings(data)
-    append_event(
-        "finding_added",
-        id=finding_id,
-        goal=goal,
-        severity=args.severity,
-        source=args.source,
-        title=finding["title"],
-    )
+    with locked_state():
+        data = load_findings()
+        finding_id = next_finding_id(data["findings"])
+        goal = args.goal.strip() or active_goal_id()
+        title = require_text(args.title, "--title")
+        evidence = require_text(args.evidence, "--evidence")
+        finding = {
+            "id": finding_id,
+            "goal": goal,
+            "title": title,
+            "severity": args.severity,
+            "source": args.source,
+            "status": "open",
+            "location": args.location.strip(),
+            "evidence": evidence,
+            "resolution": "",
+            "verify_cmd": "",
+            "verify_evidence": "",
+            "created": now(),
+            "updated": "",
+        }
+        data["findings"].append(finding)
+        save_findings(data)
+        append_event(
+            "finding_added",
+            id=finding_id,
+            goal=goal,
+            severity=args.severity,
+            source=args.source,
+            title=finding["title"],
+        )
     print(f"codex-fable5: added {finding_id}")
     print(format_finding(finding))
 
@@ -202,70 +290,74 @@ def cmd_next(args: argparse.Namespace) -> None:
 
 
 def cmd_resolve(args: argparse.Namespace) -> None:
-    data = load_findings()
-    finding = get_finding(data, args.id)
-    if finding["status"] not in {"open", "blocked"}:
-        sys.exit(f"codex-fable5: {args.id} is {finding['status']}; reopen it first.")
+    with locked_state():
+        data = load_findings()
+        finding = get_finding(data, args.id)
+        if finding["status"] not in {"open", "blocked"}:
+            sys.exit(f"codex-fable5: {args.id} is {finding['status']}; reopen it first.")
 
-    evidence = require_text(args.evidence, "--evidence")
-    verify_evidence = require_text(args.verify_evidence, "--verify-evidence")
-    finding["status"] = "resolved"
-    finding["resolution"] = evidence
-    finding["verify_cmd"] = args.verify_cmd.strip()
-    finding["verify_evidence"] = verify_evidence
-    finding["updated"] = now()
-    save_findings(data)
-    append_event(
-        "finding_resolved",
-        id=args.id,
-        goal=finding.get("goal", ""),
-        verify_cmd=finding["verify_cmd"],
-        verify_evidence=finding["verify_evidence"],
-    )
+        evidence = require_text(args.evidence, "--evidence")
+        verify_evidence = require_text(args.verify_evidence, "--verify-evidence")
+        finding["status"] = "resolved"
+        finding["resolution"] = evidence
+        finding["verify_cmd"] = args.verify_cmd.strip()
+        finding["verify_evidence"] = verify_evidence
+        finding["updated"] = now()
+        save_findings(data)
+        append_event(
+            "finding_resolved",
+            id=args.id,
+            goal=finding.get("goal", ""),
+            verify_cmd=finding["verify_cmd"],
+            verify_evidence=finding["verify_evidence"],
+        )
     print(f"codex-fable5: {args.id} -> resolved")
 
 
 def cmd_reject(args: argparse.Namespace) -> None:
-    data = load_findings()
-    finding = get_finding(data, args.id)
-    if finding["status"] in TERMINAL_STATUSES:
-        sys.exit(f"codex-fable5: {args.id} is already {finding['status']}.")
+    with locked_state():
+        data = load_findings()
+        finding = get_finding(data, args.id)
+        if finding["status"] in TERMINAL_STATUSES:
+            sys.exit(f"codex-fable5: {args.id} is already {finding['status']}.")
 
-    reason = require_text(args.reason, "--reason")
-    finding["status"] = "rejected"
-    finding["resolution"] = reason
-    finding["updated"] = now()
-    save_findings(data)
-    append_event("finding_rejected", id=args.id, goal=finding.get("goal", ""), reason=reason)
+        reason = require_text(args.reason, "--reason")
+        finding["status"] = "rejected"
+        finding["resolution"] = reason
+        finding["updated"] = now()
+        save_findings(data)
+        append_event("finding_rejected", id=args.id, goal=finding.get("goal", ""), reason=reason)
     print(f"codex-fable5: {args.id} -> rejected")
 
 
 def cmd_block(args: argparse.Namespace) -> None:
-    data = load_findings()
-    finding = get_finding(data, args.id)
-    if finding["status"] in TERMINAL_STATUSES:
-        sys.exit(f"codex-fable5: {args.id} is already {finding['status']}.")
+    with locked_state():
+        data = load_findings()
+        finding = get_finding(data, args.id)
+        if finding["status"] in TERMINAL_STATUSES:
+            sys.exit(f"codex-fable5: {args.id} is already {finding['status']}.")
 
-    reason = require_text(args.reason, "--reason")
-    finding["status"] = "blocked"
-    finding["resolution"] = reason
-    finding["updated"] = now()
-    save_findings(data)
-    append_event("finding_blocked", id=args.id, goal=finding.get("goal", ""), reason=reason)
+        reason = require_text(args.reason, "--reason")
+        finding["status"] = "blocked"
+        finding["resolution"] = reason
+        finding["updated"] = now()
+        save_findings(data)
+        append_event("finding_blocked", id=args.id, goal=finding.get("goal", ""), reason=reason)
     print(f"codex-fable5: {args.id} -> blocked")
 
 
 def cmd_reopen(args: argparse.Namespace) -> None:
-    data = load_findings()
-    finding = get_finding(data, args.id)
-    previous_status = finding["status"]
-    finding["status"] = "open"
-    finding["resolution"] = ""
-    finding["verify_cmd"] = ""
-    finding["verify_evidence"] = ""
-    finding["updated"] = now()
-    save_findings(data)
-    append_event("finding_reopened", id=args.id, previous_status=previous_status)
+    with locked_state():
+        data = load_findings()
+        finding = get_finding(data, args.id)
+        previous_status = finding["status"]
+        finding["status"] = "open"
+        finding["resolution"] = ""
+        finding["verify_cmd"] = ""
+        finding["verify_evidence"] = ""
+        finding["updated"] = now()
+        save_findings(data)
+        append_event("finding_reopened", id=args.id, previous_status=previous_status)
     print(f"codex-fable5: {args.id} reopened from {previous_status}")
 
 
