@@ -9,6 +9,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,7 @@ class ScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.fable_coverage = load_script("fable_coverage")
+        cls.codex_goals = load_script("codex_goals")
         cls.codex_findings = load_script("codex_findings")
         cls.make_litellm_config = load_script("make_litellm_config")
 
@@ -310,6 +312,24 @@ class ScriptTests(unittest.TestCase):
             rows,
             {"alpha": "adapted", "alpha > beta": "implemented", "gamma": "not_applicable"},
         )
+
+    def test_coverage_helpers_parse_sources_without_h1(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source.md"
+            source.write_text(
+                textwrap.dedent(
+                    """\
+                    ## alpha
+                    ### beta
+                    ## gamma
+                    """
+                ),
+                encoding="utf-8",
+            )
+
+            sections = self.fable_coverage.extract_source_sections(source)
+
+        self.assertEqual(sections, ["alpha", "alpha > beta", "gamma"])
 
     def test_goal_ledger_flow_and_final_verification_gate(self) -> None:
         script = SCRIPTS / "codex_goals.py"
@@ -632,6 +652,65 @@ class ScriptTests(unittest.TestCase):
             allow_blocked_gate = run(findings_script, "gate", "--allow-blocked")
             self.assertEqual(allow_blocked_gate.returncode, 0, allow_blocked_gate.stderr)
 
+    def test_findings_parallel_adds_do_not_lose_entries(self) -> None:
+        script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            processes = [
+                subprocess.Popen(
+                    [
+                        sys.executable,
+                        str(script),
+                        "add",
+                        "--title",
+                        f"Finding {index}",
+                        "--evidence",
+                        "Parallel add should persist exactly once.",
+                    ],
+                    cwd=tmp,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                for index in range(20)
+            ]
+            results = [process.communicate() + (process.returncode,) for process in processes]
+
+            for stdout, stderr, returncode in results:
+                self.assertEqual(returncode, 0, stderr or stdout)
+
+            data = json.loads((Path(tmp) / ".codex-fable5" / "findings.json").read_text())
+            ids = [finding["id"] for finding in data["findings"]]
+
+        self.assertEqual(len(ids), 20)
+        self.assertEqual(len(set(ids)), 20)
+        self.assertEqual(ids, [f"F{index:03d}" for index in range(1, 21)])
+
+    def test_lock_fallback_times_out_on_stale_lockdir(self) -> None:
+        for module in [self.codex_findings, self.codex_goals]:
+            with self.subTest(module=module.__name__):
+                with tempfile.TemporaryDirectory() as tmp:
+                    cwd = Path(tmp)
+                    state_dir = cwd / ".codex-fable5"
+                    state_dir.mkdir()
+                    (state_dir / "state.lockdir").mkdir()
+
+                    old_cwd = Path.cwd()
+                    original_fcntl = module.fcntl
+                    original_timeout = module.LOCK_TIMEOUT_SECONDS
+                    try:
+                        os.chdir(cwd)
+                        module.fcntl = None
+                        module.LOCK_TIMEOUT_SECONDS = 0.01
+                        with self.assertRaises(SystemExit) as raised:
+                            with module.locked_state():
+                                pass
+                    finally:
+                        module.fcntl = original_fcntl
+                        module.LOCK_TIMEOUT_SECONDS = original_timeout
+                        os.chdir(old_cwd)
+
+                    self.assertIn("timed out waiting for state lock", str(raised.exception))
+
     def test_goal_final_checkpoint_requires_findings_gate(self) -> None:
         goals_script = SCRIPTS / "codex_goals.py"
         findings_script = SCRIPTS / "codex_findings.py"
@@ -713,6 +792,69 @@ class ScriptTests(unittest.TestCase):
                 "accepted",
             )
             self.assertEqual(complete.returncode, 0, complete.stderr)
+
+    def test_goal_final_checkpoint_rejects_malformed_findings_ledger(self) -> None:
+        goals_script = SCRIPTS / "codex_goals.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+
+            def run(*args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(goals_script), *args],
+                    cwd=cwd,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+            self.assertEqual(
+                run("create", "--brief", "Smoke", "--goal", "verify::Confirm final state").returncode,
+                0,
+            )
+            self.assertEqual(run("next").returncode, 0)
+            findings_path = cwd / ".codex-fable5" / "findings.json"
+            findings_path.write_text(
+                json.dumps(
+                    {
+                        "findings": [
+                            {
+                                "id": "F001",
+                                "goal": "G001",
+                                "title": "Malformed status",
+                                "severity": "high",
+                                "source": "review",
+                                "status": "OPEN",
+                                "location": "",
+                                "evidence": "Uppercase status should not be accepted by final gate.",
+                                "resolution": "",
+                                "verify_cmd": "",
+                                "verify_evidence": "",
+                                "created": "test",
+                                "updated": "",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            complete = run(
+                "checkpoint",
+                "--id",
+                "G001",
+                "--status",
+                "complete",
+                "--evidence",
+                "final evidence",
+                "--verify-cmd",
+                "smoke",
+                "--verify-evidence",
+                "accepted",
+            )
+
+            self.assertNotEqual(complete.returncode, 0)
+            self.assertIn("invalid status", complete.stderr)
+            self.assertNotIn("Traceback", complete.stderr)
 
     def test_force_create_archives_stale_findings_before_new_plan(self) -> None:
         goals_script = SCRIPTS / "codex_goals.py"
@@ -799,6 +941,80 @@ class ScriptTests(unittest.TestCase):
             )
             self.assertEqual(complete.returncode, 0, complete.stderr)
 
+    def test_force_create_keeps_findings_when_goal_write_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            state_dir = cwd / ".codex-fable5"
+            state_dir.mkdir()
+            goals_path = state_dir / "goals.json"
+            findings_path = state_dir / "findings.json"
+            goals_path.write_text(
+                json.dumps(
+                    {
+                        "brief": "Old",
+                        "created": "test",
+                        "goals": [
+                            {
+                                "id": "G001",
+                                "title": "old",
+                                "objective": "Old objective",
+                                "status": "in_progress",
+                                "evidence": "",
+                                "verify_cmd": "",
+                                "verify_evidence": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            findings_path.write_text(
+                json.dumps(
+                    {
+                        "created": "test",
+                        "findings": [
+                            {
+                                "id": "F001",
+                                "goal": "G001",
+                                "title": "Old finding",
+                                "severity": "high",
+                                "source": "review",
+                                "status": "open",
+                                "location": "",
+                                "evidence": "Must remain active if replacement fails.",
+                                "resolution": "",
+                                "verify_cmd": "",
+                                "verify_evidence": "",
+                                "created": "test",
+                                "updated": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            original_write_json = self.codex_goals.write_json
+
+            def fail_write(*_: object) -> None:
+                raise OSError("simulated write failure")
+
+            old_cwd = Path.cwd()
+            try:
+                os.chdir(cwd)
+                self.codex_goals.write_json = fail_write
+                with self.assertRaises(OSError):
+                    self.codex_goals.cmd_create(
+                        SimpleNamespace(brief="New", goal=["verify::New final"], force=True)
+                    )
+            finally:
+                self.codex_goals.write_json = original_write_json
+                os.chdir(old_cwd)
+
+            self.assertTrue(findings_path.exists())
+            self.assertFalse(list(state_dir.glob("findings.*.archive.json")))
+            self.assertIn("Old objective", goals_path.read_text(encoding="utf-8"))
+
     def test_malformed_ledger_json_reports_controlled_error(self) -> None:
         goals_script = SCRIPTS / "codex_goals.py"
         findings_script = SCRIPTS / "codex_findings.py"
@@ -831,6 +1047,133 @@ class ScriptTests(unittest.TestCase):
             self.assertNotEqual(goals_status.returncode, 0)
             self.assertIn("goal plan is not valid JSON", goals_status.stderr)
             self.assertNotIn("Traceback", goals_status.stderr)
+
+    def test_malformed_ledger_schema_reports_controlled_error(self) -> None:
+        goals_script = SCRIPTS / "codex_goals.py"
+        findings_script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+            state_dir = cwd / ".codex-fable5"
+            state_dir.mkdir()
+
+            (state_dir / "findings.json").write_text("[]", encoding="utf-8")
+            findings_status = subprocess.run(
+                [sys.executable, str(findings_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(findings_status.returncode, 0)
+            self.assertIn("findings ledger must be a JSON object", findings_status.stderr)
+            self.assertNotIn("Traceback", findings_status.stderr)
+
+            (state_dir / "findings.json").write_text('{"findings": "bad"}', encoding="utf-8")
+            findings_bad_list = subprocess.run(
+                [sys.executable, str(findings_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(findings_bad_list.returncode, 0)
+            self.assertIn("field 'findings' must be a list", findings_bad_list.stderr)
+            self.assertNotIn("Traceback", findings_bad_list.stderr)
+
+            (state_dir / "findings.json").write_text(
+                json.dumps(
+                    {
+                        "findings": [
+                            {
+                                "id": "F001",
+                                "goal": "",
+                                "title": "Bad status",
+                                "severity": "medium",
+                                "source": "review",
+                                "status": [],
+                                "evidence": "Status must not crash validation.",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            findings_bad_status = subprocess.run(
+                [sys.executable, str(findings_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(findings_bad_status.returncode, 0)
+            self.assertIn("invalid status", findings_bad_status.stderr)
+            self.assertNotIn("Traceback", findings_bad_status.stderr)
+
+            (state_dir / "goals.json").write_text("[]", encoding="utf-8")
+            goals_status = subprocess.run(
+                [sys.executable, str(goals_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(goals_status.returncode, 0)
+            self.assertIn("goal plan must be a JSON object", goals_status.stderr)
+            self.assertNotIn("Traceback", goals_status.stderr)
+
+            (state_dir / "goals.json").write_text('{"brief": "bad", "goals": "bad"}', encoding="utf-8")
+            goals_bad_list = subprocess.run(
+                [sys.executable, str(goals_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(goals_bad_list.returncode, 0)
+            self.assertIn("field 'goals' must be a list", goals_bad_list.stderr)
+            self.assertNotIn("Traceback", goals_bad_list.stderr)
+
+            (state_dir / "goals.json").write_text(
+                json.dumps(
+                    {
+                        "brief": "bad",
+                        "goals": [
+                            {
+                                "id": "G001",
+                                "title": "bad",
+                                "objective": "Bad status should not crash validation.",
+                                "status": [],
+                                "evidence": "",
+                                "verify_cmd": "",
+                                "verify_evidence": "",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            goals_bad_status = subprocess.run(
+                [sys.executable, str(goals_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(goals_bad_status.returncode, 0)
+            self.assertIn("invalid status", goals_bad_status.stderr)
+            self.assertNotIn("Traceback", goals_bad_status.stderr)
+
+            (state_dir / "goals.json").write_text('{"brief": "empty", "goals": []}', encoding="utf-8")
+            goals_empty = subprocess.run(
+                [sys.executable, str(goals_script), "status"],
+                cwd=cwd,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(goals_empty.returncode, 0)
+            self.assertIn("field 'goals' must contain at least one goal", goals_empty.stderr)
+            self.assertNotIn("Traceback", goals_empty.stderr)
 
     def test_litellm_config_generation(self) -> None:
         plain = self.make_litellm_config.build_config("claude-test", "test-alias")

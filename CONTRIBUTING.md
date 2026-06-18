@@ -15,18 +15,22 @@ Thanks for helping improve FableCodex. This project is a Codex-native workflow p
 This repository intentionally uses the Python standard library for tests.
 
 ```bash
-python -m unittest discover -s tests -v
-python plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
+python3 -m unittest discover -s tests -v
+python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
 ```
 
 Before opening a pull request, also run:
 
 ```bash
-python -m py_compile \
+python3 -m py_compile \
+  plugins/codex-fable5/skills/codex-fable5/scripts/codex_findings.py \
   plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py \
   plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
   plugins/codex-fable5/skills/codex-fable5/scripts/make_litellm_config.py \
   tests/test_scripts.py
+sh -n plugins/codex-fable5/bin/codex-fable5
+sh -n plugins/codex-fable5/bin/codex-findings
+sh -n plugins/codex-fable5/bin/codex-goals
 ```
 
 ## Contribution Rules
@@ -45,4 +49,3 @@ python -m py_compile \
 - Any current product, model, API, or provider claim is verified against an official source.
 - Documentation is updated when user-facing behavior changes.
 - Licensing and attribution notes remain accurate.
-

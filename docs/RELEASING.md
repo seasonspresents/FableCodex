@@ -29,8 +29,9 @@ python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
 8. Tag the release with the plugin version, for example:
 
 ```bash
-git tag v0.3.1
-git push origin main --tags
+VERSION=$(python3 -c 'import json; print(json.load(open("plugins/codex-fable5/.codex-plugin/plugin.json"))["version"])')
+git tag "v${VERSION}"
+git push origin main "v${VERSION}"
 ```
 
 9. Create a GitHub release that summarizes user-visible changes and links to the changelog.

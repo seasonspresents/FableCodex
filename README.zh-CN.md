@@ -169,7 +169,7 @@ codex-fable5 findings add \
   --title "缺少最终验证" \
   --severity high \
   --source review \
-  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py:180" \
+  --location "plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py" \
   --evidence "即使没有测试运行证明，final checkpoint 也可以完成。"
 ```
 

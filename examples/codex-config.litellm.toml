@@ -1,7 +1,9 @@
 # Example only. Put provider routing in user-level ~/.codex/config.toml.
+# Replace placeholders with a model that official Anthropic docs and your account
+# currently show as available, and with the matching LiteLLM alias.
 
 model_provider = "litellm-fable5"
-model = "claude-fable-5"
+model = "your-codex-model-alias"
 
 [model_providers.litellm-fable5]
 name = "LiteLLM Fable 5"

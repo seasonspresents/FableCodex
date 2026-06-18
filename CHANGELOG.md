@@ -19,6 +19,12 @@ This project uses a lightweight changelog format:
 - Added explicit conversion priorities and "do not convert" boundaries for turning Claude/Fable prompt sections into Codex-native behavior.
 - Added currentness notes for Fable/Mythos provider availability so routing examples are treated as templates unless official docs and account access prove availability.
 
+### Fixed
+
+- Hardened goal and findings ledgers against malformed state, concurrent findings writes, and failed forced plan replacement.
+- Made coverage checking tolerate source markdown that starts below an H1 heading.
+- Aligned release, contributor, README, and provider-bridge examples with the current package layout and verification commands.
+
 ## 0.4.1 - 2026-06-15
 
 ### Fixed

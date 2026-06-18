@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+DEFAULT_MODEL = "replace-with-current-anthropic-model"
+
 
 def q(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
@@ -15,6 +17,8 @@ def build_config(model: str, alias: str) -> str:
     provider_model = model if model.startswith("anthropic/") else f"anthropic/{model}"
     return "\n".join(
         [
+            "# Example only. Replace the model with one that official Anthropic docs",
+            "# and your account currently show as available.",
             "model_list:",
             "  - model_name: " + q(alias),
             "    litellm_params:",
@@ -31,7 +35,11 @@ def build_config(model: str, alias: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", default="claude-fable-5", help="Anthropic model name.")
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help="Anthropic model name; verify official availability and account access first.",
+    )
     parser.add_argument("--alias", default=None, help="Model name Codex should send to LiteLLM.")
     parser.add_argument("--output", "-o", default="-", help="Output YAML path, or '-' for stdout.")
     args = parser.parse_args()
