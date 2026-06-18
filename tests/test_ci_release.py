@@ -285,6 +285,9 @@ class CiReleaseTests(ScriptTestBase):
             )
             self.assertEqual(update.returncode, 0, update.stderr)
             self.assertIn("updates the FableCodex checkout/plugin package only", update.stdout)
+            self.assertIn("target ref v0.4.4", update.stdout)
+            self.assertIn("detached HEAD", update.stdout)
+            self.assertIn("post-update version", update.stdout)
             self.assertIn("restart Codex", update.stdout)
 
             head = subprocess.run(
@@ -374,6 +377,9 @@ class CiReleaseTests(ScriptTestBase):
                 check=False,
             )
             self.assertEqual(update.returncode, 0, update.stderr)
+            self.assertIn("target ref v1.0.0", update.stdout)
+            self.assertIn("detached HEAD", update.stdout)
+            self.assertIn("post-update version", update.stdout)
             self.assertIn("updated to v1.0.0", update.stdout)
 
             head = subprocess.run(
