@@ -128,6 +128,7 @@ cmd_update() {
   fi
 
   if [ "$ref" = "main" ]; then
+    printf 'codex-fable5: target ref %s\n' "$ref"
     current_ref=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)
     if [ "$current_ref" != "main" ]; then
       git -C "$REPO_ROOT" checkout main
@@ -141,6 +142,11 @@ cmd_update() {
     fi
     current_commit=$(git -C "$REPO_ROOT" rev-parse HEAD)
     target_commit=$(git -C "$REPO_ROOT" rev-parse "$ref^{commit}")
+    target_short=$(git -C "$REPO_ROOT" rev-parse --short "$ref^{commit}")
+    printf 'codex-fable5: target ref %s (%s)\n' "$ref" "$target_short"
+    if printf '%s\n' "$ref" | grep -Eq '^v[0-9]+(\.[0-9]+)*$'; then
+      printf '%s\n' "codex-fable5: checking out a release tag may leave this git checkout in detached HEAD state."
+    fi
     if [ "$current_commit" = "$target_commit" ]; then
       printf 'codex-fable5: already up to date at %s\n' "$ref"
     else
@@ -149,6 +155,8 @@ cmd_update() {
     fi
   fi
 
+  printf '%s\n' "codex-fable5: post-update version:"
+  cmd_version
   printf '%s\n' "codex-fable5: restart Codex to reload the plugin."
 }
 

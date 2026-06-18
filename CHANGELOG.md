@@ -9,6 +9,12 @@ This project uses a lightweight changelog format:
 - `Fixed` for bug fixes.
 - `Security` for vulnerability-related changes.
 
+## 0.5.1 - 2026-06-18
+
+### Fixed
+
+- Clarified `codex-fable5 update` output by showing the target ref, warning when release-tag checkout may detach HEAD, and printing post-update version details.
+
 ## 0.5.0 - 2026-06-18
 
 ### Added
