@@ -29,6 +29,41 @@ def load_script(name: str):
     return module
 
 
+def read_skill_body() -> str:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    match = re.match(r"\A---\r?\n.*?\r?\n---\r?\n(?P<body>.*)\Z", skill, re.DOTALL)
+    if match is None:
+        raise AssertionError("SKILL.md frontmatter block not found")
+    return match.group("body")
+
+
+def parse_routing_map(body: str) -> list[tuple[str, str]]:
+    match = re.search(r"^## Routing Map\r?\n\r?\n(?P<table>.*?)(?:\r?\n## |\Z)", body, re.DOTALL | re.MULTILINE)
+    if match is None:
+        raise AssertionError("Routing Map section not found")
+    rows: list[tuple[str, str]] = []
+    for line in match.group("table").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 2 or cells[0] == "Signal" or set(cells[0]) == {"-"}:
+            continue
+        rows.append((cells[0], cells[1]))
+    return rows
+
+
+def read_readme_fable_pin() -> str:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    match = re.search(
+        r"`elder-plinius/CL4R1T4S`\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+"
+        r"at commit\s+`([0-9a-f]{40})`",
+        readme,
+    )
+    if match is None:
+        raise AssertionError("pinned FABLE-5 SHA not found in README")
+    return match.group(1)
+
+
 class ScriptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -114,6 +149,36 @@ class ScriptTests(unittest.TestCase):
                 for snippet in required_snippets:
                     self.assertIn(snippet, text)
 
+    def test_skill_body_keeps_core_loop_concise(self) -> None:
+        body = read_skill_body()
+        routes = parse_routing_map(body)
+        route_text = "\n".join(f"{signal} => {target}" for signal, target in routes)
+
+        self.assertLessEqual(len(body.splitlines()), 90)
+        self.assertLessEqual(len(body.split()), 950)
+        for heading in ["## Non-Negotiables", "## Core Loop", "## Routing Map"]:
+            self.assertIn(heading, body)
+
+        self.assertIn("final verification gate", body)
+        self.assertIn("Require the findings gate before final completion", body)
+        self.assertIn("Communicate in Codex style", body)
+
+        self.assertRegex(route_text, r"Multi-step.*task-routing\.md.*goal and findings gates")
+        for target in [
+            "references/task-routing.md",
+            "references/operating-structure.md",
+            "references/fable-to-codex-map.md",
+            "references/coverage-matrix.md",
+            "scripts/fable_coverage.py --source",
+            "references/provider-bridge.md",
+            "references/currentness-safety.md",
+            "references/artifact-and-tooling.md",
+            "references/connectors-and-mcp.md",
+            "references/state-memory.md",
+            "references/provenance.md",
+        ]:
+            self.assertIn(target, route_text)
+
     def test_plugin_version_is_documented_in_changelog(self) -> None:
         plugin = json.loads(
             (ROOT / "plugins" / "codex-fable5" / ".codex-plugin" / "plugin.json").read_text(
@@ -192,15 +257,7 @@ class ScriptTests(unittest.TestCase):
         SHA; this test fetches the same bytes the CI workflow fetches and
         runs the validator against the local matrix."""
         script = SCRIPTS / "fable_coverage.py"
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        match = re.search(
-            r"`elder-plinius/CL4R1T4S`\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+"
-            r"at commit\s+`([0-9a-f]{40})`",
-            readme,
-        )
-        self.assertIsNotNone(match, "pinned SHA not found in README")
-        assert match is not None  # for type checkers
-        pin = match.group(1)
+        pin = read_readme_fable_pin()
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "CLAUDE-FABLE-5.md"
             url = (
@@ -236,6 +293,14 @@ class ScriptTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("CLAUDE-FABLE-5.md", workflow)
         self.assertIn("elder-plinius/CL4R1T4S", workflow)
+        pin_match = re.search(r'PIN="([0-9a-f]{40})"', workflow)
+        self.assertIsNotNone(pin_match, "CI workflow must define the pinned upstream SHA")
+        assert pin_match is not None  # for type checkers
+        self.assertEqual(
+            read_readme_fable_pin(),
+            pin_match.group(1),
+            "CI workflow pin must match README source note pin",
+        )
         # The validator invocation must include --source.
         # Look for lines that invoke fable_coverage.py and contain --source.
         has_source_arg = False
@@ -248,6 +313,15 @@ class ScriptTests(unittest.TestCase):
             "CI workflow must pass --source to fable_coverage.py "
             "so the matrix is validated against the upstream FABLE-5 source",
         )
+
+    def test_release_checklist_validates_against_pinned_source(self) -> None:
+        releasing = (ROOT / "docs" / "RELEASING.md").read_text(encoding="utf-8")
+
+        self.assertIn("README.md", releasing)
+        self.assertIn("raw.githubusercontent.com/elder-plinius/CL4R1T4S/${PIN}", releasing)
+        self.assertIn("--source build/fable5/CLAUDE-FABLE-5.md", releasing)
+        self.assertIn(r"\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+at commit\s+", releasing)
+        self.assertNotIn(r"\\s+", releasing)
 
     def test_user_facing_wrappers_run_from_path(self) -> None:
         env = {**os.environ, "PATH": f"{BIN}{os.pathsep}{os.environ['PATH']}"}

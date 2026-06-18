@@ -21,7 +21,22 @@ python3 -m py_compile \
 sh -n plugins/codex-fable5/bin/codex-fable5
 sh -n plugins/codex-fable5/bin/codex-findings
 sh -n plugins/codex-fable5/bin/codex-goals
-python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
+PIN=$(python3 - <<'PY'
+import re
+from pathlib import Path
+text = Path("README.md").read_text(encoding="utf-8")
+match = re.search(r"`elder-plinius/CL4R1T4S`\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+at commit\s+`([0-9a-f]{40})`", text)
+if not match:
+    raise SystemExit("pinned FABLE-5 SHA not found in README.md")
+print(match.group(1))
+PY
+)
+mkdir -p build/fable5
+curl -fsSL \
+  "https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/${PIN}/ANTHROPIC/CLAUDE-FABLE-5.md" \
+  -o build/fable5/CLAUDE-FABLE-5.md
+python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
+  --source build/fable5/CLAUDE-FABLE-5.md
 ```
 
 6. Verify no secrets, `.codex-fable5/` ledgers, or local cache files are staged.

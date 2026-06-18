@@ -9,6 +9,13 @@ This project uses a lightweight changelog format:
 - `Fixed` for bug fixes.
 - `Security` for vulnerability-related changes.
 
+## Unreleased
+
+### Changed
+
+- Condensed the Codex Fable5 skill body around non-negotiables, a core loop, and a routing map so the primary execution rules stay more salient.
+- Strengthened release and test validation around pinned FABLE-5 source coverage and SKILL.md routing-map structure.
+
 ## 0.4.2 - 2026-06-18
 
 ### Changed
