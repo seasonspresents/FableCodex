@@ -290,7 +290,7 @@ It paraphrases and adapts workflow ideas instead of reproducing source prompts o
 
 ## Recognition
 
-- FableCodex was listed in [sickn33/antigravity-awesome-skills#686](https://github.com/sickn33/antigravity-awesome-skills/pull/686).
+- FableCodex was listed in [sickn33/antigravity-awesome-skills#686](https://github.com/sickn33/antigravity-awesome-skills/pull/686), https://github.com/VoltAgent/awesome-agent-skills.
 
 ## Contributors
 
