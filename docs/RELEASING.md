@@ -11,36 +11,18 @@ This project uses a lightweight release process because it is a small Codex plug
 5. Run local verification:
 
 ```bash
-python3 -m unittest discover -s tests -v
-python3 -m py_compile \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_fable_state.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_findings.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/make_litellm_config.py \
-  tests/*.py
-sh -n plugins/codex-fable5/bin/codex-fable5
-sh -n plugins/codex-fable5/bin/codex-findings
-sh -n plugins/codex-fable5/bin/codex-goals
-PIN=$(python3 - <<'PY'
-import re
-from pathlib import Path
-text = Path("README.md").read_text(encoding="utf-8")
-match = re.search(r"`elder-plinius/CL4R1T4S`\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+at commit\s+`([0-9a-f]{40})`", text)
-if not match:
-    raise SystemExit("pinned FABLE-5 SHA not found in README.md")
-print(match.group(1))
-PY
-)
-mkdir -p build/fable5
-curl -fsSL \
-  "https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/${PIN}/ANTHROPIC/CLAUDE-FABLE-5.md" \
-  -o build/fable5/CLAUDE-FABLE-5.md
-python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
-  --source build/fable5/CLAUDE-FABLE-5.md
+python3 tools/verify_release.py --source-check required
 ```
 
-6. Verify no secrets, `.codex-fable5/` ledgers, or local cache files are staged.
+`--source-check required` fetches the README.md-pinned `elder-plinius/CL4R1T4S` `ANTHROPIC/CLAUDE-FABLE-5.md` from `https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/${PIN}/ANTHROPIC/CLAUDE-FABLE-5.md`, writes it to `build/fable5/CLAUDE-FABLE-5.md`, and runs `fable_coverage.py --source build/fable5/CLAUDE-FABLE-5.md`. Use the default `python3 tools/verify_release.py` for offline local work where the upstream source check should be skipped.
+
+If Codex is installed locally, also run:
+
+```bash
+python3 tools/codex_plugin_smoke.py --case all
+```
+
+6. Review `docs/SECURITY_PRIVACY_REVIEW.md` and `docs/DOGFOOD_REPORT.md`, then verify no secrets, `.codex-fable5/` ledgers, generated build output, local provider configs, or real-looking API key placeholders are staged.
 7. Commit the release changes.
 8. Tag the release with the plugin version, for example:
 

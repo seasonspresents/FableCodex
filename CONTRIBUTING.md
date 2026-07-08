@@ -15,23 +15,20 @@ Thanks for helping improve FableCodex. This project is a Codex-native workflow p
 This repository intentionally uses the Python standard library for tests.
 
 ```bash
-python3 -m unittest discover -s tests -v
-python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py
+python3 tools/verify_release.py
 ```
 
-Before opening a pull request, also run:
+The verifier runs unit tests, `py_compile` over package scripts/tools/tests, shell syntax checks for wrappers, and coverage matrix validation. Before release work, include the pinned upstream source validation:
 
 ```bash
-python3 -m py_compile \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_fable_state.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_findings.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/codex_goals.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py \
-  plugins/codex-fable5/skills/codex-fable5/scripts/make_litellm_config.py \
-  tests/*.py
-sh -n plugins/codex-fable5/bin/codex-fable5
-sh -n plugins/codex-fable5/bin/codex-findings
-sh -n plugins/codex-fable5/bin/codex-goals
+python3 tools/verify_release.py --source-check required
+```
+
+If you have Codex installed locally and changed marketplace, plugin, skill, or
+install docs, also run:
+
+```bash
+python3 tools/codex_plugin_smoke.py --case all
 ```
 
 ## Contribution Rules
@@ -45,6 +42,7 @@ sh -n plugins/codex-fable5/bin/codex-goals
 
 ## Pull Request Checklist
 
+- The release verifier passes locally: `python3 tools/verify_release.py`.
 - The change matches the project boundary and does not overpromise model capability.
 - Tests pass locally.
 - Any current product, model, API, or provider claim is verified against an official source.

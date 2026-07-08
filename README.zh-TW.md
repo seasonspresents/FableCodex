@@ -40,11 +40,12 @@ FableCodex 是一個 Codex 外掛，會把 Fable 風格的工作習慣加入 Cod
 安裝穩定版：
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
-重新啟動 Codex，然後在提示詞中呼叫這個 skill：
+然後在 Codex Desktop 的 plugin marketplace UI 中安裝並啟用 `codex-fable5@fablecodex`。在 `codex-cli 0.128.0` 中，plugin enablement 由 app-server/Desktop 驅動；`codex plugin add` 不是公開 CLI subcommand。
+
+重新啟動 Codex 或 reload plugin list，然後在提示詞中呼叫這個 skill：
 
 ```text
 @codex-fable5 使用這個 skill 實作這個變更。
@@ -129,6 +130,8 @@ codex plugin add codex-fable5@fablecodex
 
 對較長的工作，helper 會把本地狀態存到 `.codex-fable5/goals.json`。
 
+當工作包含多個 dependent story、驗證風險較高，或 review finding 必須阻止最終完成時使用 ledger。短任務可使用一般 Codex plan，因為 local JSON ledger 可能比任務本身更重。
+
 ```bash
 export PATH="$PWD/plugins/codex-fable5/bin:$PATH"
 
@@ -197,9 +200,11 @@ codex-fable5 findings gate
 | --- | --- |
 | `codex-fable5 status` | 查看 findings 和 goal 進度。 |
 | `codex-fable5 version` | 顯示已安裝的 plugin version、路徑和 git checkout 狀態。 |
+| `codex-fable5 doctor` | 檢查已安裝 package、local state 和 Codex enablement hint。 |
 | `codex-fable5 update` | 將 FableCodex checkout/plugin package 更新到最新穩定 `v*` tag。 |
 | `codex-fable5 goals create` | 建立本地 multi-step goal ledger。 |
 | `codex-fable5 goals next` | 開始或繼續下一個 goal。 |
+| `codex-fable5 goals summary` | 輸出可用於最終回覆的 progress、evidence、verification 和 findings-gate status。 |
 | `codex-fable5 goals checkpoint` | 帶 evidence 將 goal 標記為 complete、failed 或 blocked。 |
 | `codex-fable5 findings add` | 記錄有證據支持的 review finding。 |
 | `codex-fable5 findings next` | 顯示優先權最高的 open finding。 |
@@ -219,25 +224,30 @@ plugins/codex-fable5/bin/codex-fable5 status
 穩定版：
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
 開發版：
 
 ```bash
 codex plugin marketplace add baskduf/FableCodex --ref main
-codex plugin add codex-fable5@fablecodex
 ```
 
 本地開發：
 
 ```bash
 codex plugin marketplace add ~/Desktop/FableCodex
-codex plugin add codex-fable5@fablecodex
 ```
 
-安裝或更新外掛後，請重新啟動 Codex。
+加入 marketplace source 後，在 Codex Desktop 的 plugin marketplace UI 中安裝並啟用 `codex-fable5@fablecodex`。安裝、啟用或更新 plugin 後，請重新啟動 Codex 或 reload plugin list。
+
+## 疑難排解
+
+- 已加入 marketplace，但 `@codex-fable5` 無法使用：在 Codex Desktop 中安裝並啟用 `codex-fable5@fablecodex`，然後重新啟動 Codex 或 reload plugin list。
+- `codex plugin add` 回傳 `error: unrecognized subcommand 'add'`：在已驗證的 Codex runtime 中，這不是公開 CLI 指令。請使用 `codex plugin marketplace add ...`，然後在 Codex Desktop 中啟用 plugin。
+- 啟用後 skill 仍未載入：重新啟動 Codex，並確認 prompt 使用的是 `@codex-fable5`。
+- `codex-fable5 update` 因 dirty checkout 拒絕繼續：更新前請 commit、stash 或 clean 本機變更。
+- provider bridge 混淆：FableCodex 是 workflow-only。它不會提供 Fable、Anthropic、OpenAI 或 LiteLLM access；選用 bridge setup 需要你自己的 valid credential 和 authorized model access。
 
 ## 本地狀態
 

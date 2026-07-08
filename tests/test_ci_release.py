@@ -61,7 +61,10 @@ class CiReleaseTests(ScriptTestBase):
         self.assertIn("python3 -m unittest discover -s tests -v", workflow)
         self.assertIn("python3 -m py_compile", workflow)
         self.assertIn("codex_fable_state.py", workflow)
+        self.assertIn("codex_doctor.py", workflow)
         self.assertIn("codex_findings.py", workflow)
+        self.assertIn("tools/codex_plugin_smoke.py", workflow)
+        self.assertIn("tools/verify_release.py", workflow)
         self.assertIn("sh -n plugins/codex-fable5/bin/codex-fable5", workflow)
         self.assertIn("sh -n plugins/codex-fable5/bin/codex-findings", workflow)
         self.assertIn("sh -n plugins/codex-fable5/bin/codex-goals", workflow)
@@ -136,10 +139,21 @@ class CiReleaseTests(ScriptTestBase):
         releasing = (ROOT / "docs" / "RELEASING.md").read_text(encoding="utf-8")
 
         self.assertIn("README.md", releasing)
+        self.assertIn("python3 tools/verify_release.py --source-check required", releasing)
         self.assertIn("raw.githubusercontent.com/elder-plinius/CL4R1T4S/${PIN}", releasing)
         self.assertIn("--source build/fable5/CLAUDE-FABLE-5.md", releasing)
-        self.assertIn(r"\s+`ANTHROPIC/CLAUDE-FABLE-5\.md`\s+at commit\s+", releasing)
+        self.assertIn("tools/codex_plugin_smoke.py", releasing)
+        self.assertIn("README.md-pinned", releasing)
         self.assertNotIn(r"\\s+", releasing)
+
+    def test_contributor_and_pr_docs_prefer_release_verifier(self) -> None:
+        contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        template = (ROOT / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+
+        self.assertIn("python3 tools/verify_release.py", contributing)
+        self.assertIn("python3 tools/verify_release.py --source-check required", contributing)
+        self.assertIn("python3 tools/verify_release.py", template)
+        self.assertIn("python3 tools/verify_release.py --source-check required", template)
 
     def test_user_facing_wrappers_run_from_path(self) -> None:
         env = {**os.environ, "PATH": f"{BIN}{os.pathsep}{os.environ['PATH']}"}
@@ -340,6 +354,27 @@ class CiReleaseTests(ScriptTestBase):
 
             self.assertNotEqual(update.returncode, 0)
             self.assertIn("refusing to update a dirty checkout", update.stderr)
+
+    def test_update_command_rejects_option_like_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            clone = Path(tmp) / "FableCodex"
+            shutil.copytree(ROOT / "plugins", clone / "plugins")
+
+            update = subprocess.run(
+                [
+                    str(clone / "plugins" / "codex-fable5" / "bin" / "codex-fable5"),
+                    "update",
+                    "--ref",
+                    "--help",
+                ],
+                cwd=clone,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(update.returncode, 2)
+            self.assertIn("--ref value must not begin with '-'", update.stderr)
 
     def test_update_default_ignores_prerelease_tags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -7,6 +7,7 @@ REPO_ROOT=$(CDPATH= cd "$PLUGIN_ROOT/../.." && pwd)
 MANIFEST="$PLUGIN_ROOT/.codex-plugin/plugin.json"
 GOALS="$SCRIPT_DIR/../skills/codex-fable5/scripts/codex_goals.py"
 FINDINGS="$SCRIPT_DIR/../skills/codex-fable5/scripts/codex_findings.py"
+DOCTOR="$SCRIPT_DIR/../skills/codex-fable5/scripts/codex_doctor.py"
 SKILL_ROOT=$(CDPATH= cd "$SCRIPT_DIR/../skills/codex-fable5" && pwd)
 SKILL="$SKILL_ROOT/SKILL.md"
 
@@ -15,6 +16,7 @@ usage() {
 Usage:
   codex-fable5 status
   codex-fable5 version
+  codex-fable5 doctor
   codex-fable5 update [--ref <ref>] [--no-fetch]
   codex-fable5 goals <command> [args...]
   codex-fable5 findings <command> [args...]
@@ -22,6 +24,7 @@ Usage:
 Examples:
   codex-fable5 status
   codex-fable5 version
+  codex-fable5 doctor
   codex-fable5 update
   codex-fable5 update --ref main
   codex-fable5 findings add --title "Missing verification" --evidence "No test evidence"
@@ -97,6 +100,13 @@ cmd_update() {
     shift
   done
 
+  case "$ref" in
+    -*)
+      printf '%s\n' "codex-fable5: --ref value must not begin with '-'." >&2
+      exit 2
+      ;;
+  esac
+
   current=$(manifest_value version)
   printf 'codex-fable5: current version %s\n' "$current"
   printf '%s\n' "codex-fable5: updates the FableCodex checkout/plugin package only; it does not change model/provider access."
@@ -105,8 +115,8 @@ cmd_update() {
     target=${ref:-'<latest-stable-tag>'}
     printf '%s\n' "codex-fable5: this installation is not inside a git checkout; update with Codex plugin commands:"
     printf '  codex plugin marketplace add baskduf/FableCodex --ref %s\n' "$target"
-    printf '%s\n' "  codex plugin add codex-fable5@fablecodex"
-    printf '%s\n' "codex-fable5: restart Codex after updating."
+    printf '%s\n' "codex-fable5: then enable codex-fable5@fablecodex in Codex Desktop."
+    printf '%s\n' "codex-fable5: restart or reload Codex after updating."
     return 0
   fi
 
@@ -179,6 +189,9 @@ case "$1" in
     ;;
   version|--version|-v)
     cmd_version
+    ;;
+  doctor|healthcheck)
+    exec python3 "$DOCTOR"
     ;;
   update)
     shift

@@ -40,11 +40,12 @@ FableCodex 是一个 Codex 插件，用来把 Fable 风格的工作习惯加入 
 安装稳定版：
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
-重启 Codex，然后在提示词中调用这个 skill：
+然后在 Codex Desktop 的 plugin marketplace UI 中安装并启用 `codex-fable5@fablecodex`。在 `codex-cli 0.128.0` 中，plugin enablement 由 app-server/Desktop 驱动；`codex plugin add` 不是公开 CLI subcommand。
+
+重启 Codex 或 reload plugin list，然后在提示词中调用这个 skill：
 
 ```text
 @codex-fable5 使用这个 skill 实现这个改动。
@@ -129,6 +130,8 @@ codex plugin add codex-fable5@fablecodex
 
 对于较长任务，helper 会把本地状态存到 `.codex-fable5/goals.json`。
 
+当工作包含多个 dependent story、验证风险较高，或 review finding 必须阻止最终完成时使用 ledger。短任务可使用普通 Codex plan，因为 local JSON ledger 可能比任务本身更重。
+
 ```bash
 export PATH="$PWD/plugins/codex-fable5/bin:$PATH"
 
@@ -197,9 +200,11 @@ codex-fable5 findings gate
 | --- | --- |
 | `codex-fable5 status` | 查看 findings 和 goal 进度。 |
 | `codex-fable5 version` | 显示已安装的 plugin version、路径和 git checkout 状态。 |
+| `codex-fable5 doctor` | 检查已安装 package、local state 和 Codex enablement hint。 |
 | `codex-fable5 update` | 将 FableCodex checkout/plugin package 更新到最新稳定 `v*` tag。 |
 | `codex-fable5 goals create` | 创建本地 multi-step goal ledger。 |
 | `codex-fable5 goals next` | 开始或继续下一个 goal。 |
+| `codex-fable5 goals summary` | 输出可用于最终回复的 progress、evidence、verification 和 findings-gate status。 |
 | `codex-fable5 goals checkpoint` | 带 evidence 将 goal 标记为 complete、failed 或 blocked。 |
 | `codex-fable5 findings add` | 记录有证据支持的 review finding。 |
 | `codex-fable5 findings next` | 显示优先级最高的 open finding。 |
@@ -219,25 +224,30 @@ plugins/codex-fable5/bin/codex-fable5 status
 稳定版：
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
 开发版：
 
 ```bash
 codex plugin marketplace add baskduf/FableCodex --ref main
-codex plugin add codex-fable5@fablecodex
 ```
 
 本地开发：
 
 ```bash
 codex plugin marketplace add ~/Desktop/FableCodex
-codex plugin add codex-fable5@fablecodex
 ```
 
-安装或更新插件后，请重启 Codex。
+添加 marketplace source 后，在 Codex Desktop 的 plugin marketplace UI 中安装并启用 `codex-fable5@fablecodex`。安装、启用或更新 plugin 后，请重启 Codex 或 reload plugin list。
+
+## 故障排查
+
+- 已添加 marketplace，但 `@codex-fable5` 不可用：在 Codex Desktop 中安装并启用 `codex-fable5@fablecodex`，然后重启 Codex 或 reload plugin list。
+- `codex plugin add` 返回 `error: unrecognized subcommand 'add'`：在已验证的 Codex runtime 中，这不是公开 CLI 命令。请使用 `codex plugin marketplace add ...`，然后在 Codex Desktop 中启用 plugin。
+- 启用后 skill 仍未加载：重启 Codex，并确认 prompt 使用的是 `@codex-fable5`。
+- `codex-fable5 update` 因 dirty checkout 拒绝继续：更新前请 commit、stash 或 clean 本地更改。
+- provider bridge 混淆：FableCodex 是 workflow-only。它不会提供 Fable、Anthropic、OpenAI 或 LiteLLM access；可选 bridge 设置需要你自己的 valid credential 和 authorized model access。
 
 ## 本地状态
 

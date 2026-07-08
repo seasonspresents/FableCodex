@@ -130,6 +130,135 @@ class GoalLedgerTests(ScriptTestBase):
             self.assertEqual(status.returncode, 0, status.stderr)
             self.assertIn("2/2 complete", status.stdout)
 
+    def test_goal_status_and_next_output_are_clear_for_long_tasks(self) -> None:
+        script = SCRIPTS / "codex_goals.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+
+            def run(*args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(script), *args],
+                    cwd=cwd,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+            created = run(
+                "create",
+                "--brief",
+                "Long task",
+                "--goal",
+                "inspect::Read the system",
+                "--goal",
+                "change::Patch the behavior",
+                "--goal",
+                "verify::Run the gate",
+            )
+            self.assertEqual(created.returncode, 0, created.stderr)
+
+            first = run("next")
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertIn("=== G001 inspect", first.stdout)
+            self.assertIn("Checkpoint command:", first.stdout)
+            self.assertIn(
+                'codex-fable5 goals checkpoint --id G001 --status complete --evidence "<evidence>"',
+                first.stdout,
+            )
+
+            state = cwd / ".codex-fable5" / "goals.json"
+            data = json.loads(state.read_text(encoding="utf-8"))
+            data["goals"][0]["status"] = "complete"
+            data["goals"][0]["evidence"] = "inspection evidence"
+            data["goals"][1]["status"] = "failed"
+            data["goals"][2]["status"] = "blocked"
+            state.write_text(json.dumps(data), encoding="utf-8")
+
+            status = run("status")
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn("status: 1 complete, 1 failed, 1 blocked", status.stdout)
+            self.assertIn("G001 [complete] inspect", status.stdout)
+            self.assertIn("G002 [failed] change", status.stdout)
+            self.assertIn("G003 [blocked] verify", status.stdout)
+
+            final = run("next")
+            self.assertEqual(final.returncode, 0, final.stderr)
+            self.assertIn("Reopened G002 from failed", final.stdout)
+            self.assertIn("Checkpoint command:", final.stdout)
+
+    def test_goal_summary_outputs_final_response_evidence(self) -> None:
+        goals_script = SCRIPTS / "codex_goals.py"
+        findings_script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+
+            def run(script: Path, *args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(script), *args],
+                    cwd=cwd,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+            self.assertEqual(
+                run(
+                    goals_script,
+                    "create",
+                    "--brief",
+                    "Summary smoke",
+                    "--goal",
+                    "inspect::Read inputs",
+                    "--goal",
+                    "verify::Run tests",
+                ).returncode,
+                0,
+            )
+            self.assertEqual(run(goals_script, "next").returncode, 0)
+            self.assertEqual(
+                run(
+                    goals_script,
+                    "checkpoint",
+                    "--id",
+                    "G001",
+                    "--status",
+                    "complete",
+                    "--evidence",
+                    "read README and tests",
+                ).returncode,
+                0,
+            )
+            self.assertEqual(run(goals_script, "next").returncode, 0)
+            self.assertEqual(run(findings_script, "gate").returncode, 0)
+            self.assertEqual(
+                run(
+                    goals_script,
+                    "checkpoint",
+                    "--id",
+                    "G002",
+                    "--status",
+                    "complete",
+                    "--evidence",
+                    "implemented summary output",
+                    "--verify-cmd",
+                    "python3 -m unittest tests.test_goals -v",
+                    "--verify-evidence",
+                    "goal tests passed",
+                ).returncode,
+                0,
+            )
+
+            summary = run(goals_script, "summary")
+            self.assertEqual(summary.returncode, 0, summary.stderr)
+            self.assertIn("codex-fable5 summary", summary.stdout)
+            self.assertIn("Brief: Summary smoke", summary.stdout)
+            self.assertIn("Progress: 2/2 complete", summary.stdout)
+            self.assertIn("Status: 2 complete", summary.stdout)
+            self.assertIn("- G001 complete inspect: Read inputs", summary.stdout)
+            self.assertIn("evidence: read README and tests", summary.stdout)
+            self.assertIn("verification: python3 -m unittest tests.test_goals -v -> goal tests passed", summary.stdout)
+            self.assertIn("Findings gate: no blocking findings", summary.stdout)
+
     def test_goal_ledger_failed_story_is_not_reported_complete(self) -> None:
         script = SCRIPTS / "codex_goals.py"
         with tempfile.TemporaryDirectory() as tmp:

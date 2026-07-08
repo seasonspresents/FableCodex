@@ -40,11 +40,12 @@ It is useful when the cost of a missed step is higher than the cost of a little 
 Install the stable release:
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
-Restart Codex, then ask for the skill in your prompt:
+Then install and enable `codex-fable5@fablecodex` from the Codex Desktop plugin marketplace UI. In `codex-cli 0.128.0`, plugin enablement is app-server/Desktop-driven; `codex plugin add` is not a public CLI subcommand.
+
+Restart Codex or reload the plugin list, then ask for the skill in your prompt:
 
 ```text
 @codex-fable5 Use this skill to implement the change.
@@ -59,6 +60,10 @@ For a lighter pass:
 @codex-fable5 Review this quickly.
 Do not create a goal ledger. Check the key evidence and report only actionable findings.
 ```
+
+For copyable task-level prompts, see `examples/workflows.md`.
+For repo-wide default behavior, adapt `examples/AGENTS.md` into your own `AGENTS.md`.
+For release dogfood evidence and friction tracking, see `docs/DOGFOOD_REPORT.md`.
 
 ## What Changes In Codex
 
@@ -129,6 +134,8 @@ Reproduce it first, keep multiple hypotheses, gather disconfirming evidence, the
 
 For longer work, the helper stores local state in `.codex-fable5/goals.json`.
 
+Use a ledger when work has multiple dependent stories, high verification risk, or review findings that must block final completion. Use a normal Codex plan for short work where a local JSON ledger would be heavier than the task.
+
 ```bash
 export PATH="$PWD/plugins/codex-fable5/bin:$PATH"
 
@@ -197,9 +204,11 @@ The gate fails while `open` or `blocked` findings remain. Final goal completion 
 | --- | --- |
 | `codex-fable5 status` | Show findings and goal progress. |
 | `codex-fable5 version` | Show the installed plugin version, paths, and git checkout state. |
+| `codex-fable5 doctor` | Check the installed package, local state, and Codex enablement hints. |
 | `codex-fable5 update` | Update the FableCodex checkout/plugin package to the latest stable `v*` tag. |
 | `codex-fable5 goals create` | Create a local multi-step goal ledger. |
 | `codex-fable5 goals next` | Start or resume the next goal. |
+| `codex-fable5 goals summary` | Print final-response-ready progress, evidence, verification, and findings-gate status. |
 | `codex-fable5 goals checkpoint` | Mark a goal complete, failed, or blocked with evidence. |
 | `codex-fable5 findings add` | Record an evidence-backed review finding. |
 | `codex-fable5 findings next` | Show the highest-priority open finding. |
@@ -219,25 +228,30 @@ plugins/codex-fable5/bin/codex-fable5 status
 Stable release:
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
 Development version:
 
 ```bash
 codex plugin marketplace add baskduf/FableCodex --ref main
-codex plugin add codex-fable5@fablecodex
 ```
 
 Local development:
 
 ```bash
 codex plugin marketplace add ~/Desktop/FableCodex
-codex plugin add codex-fable5@fablecodex
 ```
 
-Restart Codex after installing or updating the plugin.
+After adding the marketplace source, install and enable `codex-fable5@fablecodex` from Codex Desktop's plugin marketplace UI. Restart Codex or reload the plugin list after installing, enabling, or updating the plugin.
+
+## Troubleshooting
+
+- Marketplace added but `@codex-fable5` is unavailable: install and enable `codex-fable5@fablecodex` in Codex Desktop, then restart Codex or reload the plugin list.
+- `codex plugin add` says `error: unrecognized subcommand 'add'`: that CLI command is not public in the verified Codex runtime. Use `codex plugin marketplace add ...`, then enable the plugin in Codex Desktop.
+- Skill still is not loaded after enabling: restart Codex, then verify the prompt uses `@codex-fable5`.
+- `codex-fable5 update` refuses to continue because the checkout is dirty: commit, stash, or clean your local changes before updating.
+- Provider bridge confusion: FableCodex is workflow-only. It does not grant Fable, Anthropic, OpenAI, or LiteLLM access; optional bridge setup requires your own valid credentials and authorized model access.
 
 ## Local State
 
@@ -248,6 +262,8 @@ FableCodex writes local task state under `.codex-fable5/`:
 - `ledger.jsonl`: append-only event history.
 
 These files are local working state and should not be committed unless you intentionally want to preserve a task transcript.
+
+For archive-first recovery from corrupted ledgers, stale locks, or interrupted forced plan replacement, see `docs/STATE_RECOVERY.md`.
 
 ## Coverage Accounting
 
@@ -269,6 +285,8 @@ plugins/codex-fable5/skills/codex-fable5/references/provider-bridge.md
 ```
 
 You need valid Anthropic access and a working OpenAI-compatible gateway such as LiteLLM. This repository does not provide model access.
+
+Provider bridge guidance is current-sensitive; the reference lists the official Codex, LiteLLM, and Anthropic sources to recheck before changing credentials or model routing.
 
 ## Test
 

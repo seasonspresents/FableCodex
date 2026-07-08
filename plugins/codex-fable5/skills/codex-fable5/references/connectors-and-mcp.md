@@ -20,6 +20,88 @@ Call an app/MCP tool directly when:
 
 Read the relevant skill first when a plugin skill says it is mandatory for the operation.
 
+## Practical Routing Examples
+
+### GitHub And Repo Objects
+
+Use local repo tools first for files, branches, diffs, tests, and commits that are already in the workspace. Use GitHub, GitHub CLI, or a GitHub MCP/app connector when the user asks about remote-only objects such as pull requests, issue comments, checks, code scanning alerts, release metadata, or private repository state.
+
+Example prompt:
+
+```text
+@codex-fable5 Review the GitHub PR linked in this issue and verify the local patch still matches it.
+```
+
+Routing:
+
+- Read local files with normal filesystem/git tools when the repo is cloned.
+- Use connector readback for PR discussion, review comments, CI/check status, private issues, or advisory data.
+- Use public web search only for public GitHub pages when no private connector data is needed.
+
+### Browser And Chrome Visual Verification
+
+Use the in-app Browser for local app previews, public pages, screenshots, console checks, and performance traces that do not need the user's signed-in Chrome profile. Use Chrome when the task depends on a signed-in website, browser profile, extension state, or a site that only works in the user's Chrome session.
+
+Example prompt:
+
+```text
+@codex-fable5 Verify this checkout flow visually.
+Use Browser for the local preview unless a signed-in Chrome session is required.
+```
+
+Routing:
+
+- If Browser/Chrome tools are not already loaded, use `tool_search` for the requested browser capability before assuming it exists.
+- Capture visible evidence: screenshot, console status, network/performance trace, or viewport notes.
+- Do not treat code inspection as a substitute for rendered verification when the user asked for visual behavior.
+
+### Linear Issue And Project Work
+
+Use Linear tools when the user names a Linear issue/project, asks for issue creation or updates, or wants status/priority/label/project work in Linear.
+
+Example prompt:
+
+```text
+@codex-fable5 Turn this implementation plan into Linear issues under the Personal team.
+Read existing project context first, then create or update issues with acceptance criteria.
+```
+
+Routing:
+
+- Read before write: list teams/projects/statuses/issues, then create comments/issues/updates.
+- Preserve Linear identifiers such as `PER-123` in evidence and final summaries.
+- Avoid hard-coding private workspace names unless the user gave them or connector readback confirms them.
+
+### Documents, Spreadsheets, And PDFs
+
+Use document/spreadsheet/PDF connectors or bundled document skills when the user references private files, uploaded files, Drive/Docs/Sheets objects, or local PDFs. Public web search is not a substitute for reading the actual private document.
+
+Example prompt:
+
+```text
+@codex-fable5 Extract the acceptance criteria from this product spec and turn them into implementation tasks.
+Use connector readback for the source document and cite the document sections you used.
+```
+
+Routing:
+
+- Use connector readback or local file parsing for the source artifact.
+- Preserve document/sheet/page references in evidence.
+- Use public web only for external facts needed to interpret the document, and label those sources separately.
+
+## Connector Readback Versus Public Web Search
+
+Use connector readback when the source is private, user-owned, permissioned, mutable inside an app, or referenced by an app URL/object ID. Use public web search when the needed fact is public, current, and not specific to the user's private workspace.
+
+When both are needed, read the private connector source first, then use public/current sources only for external claims. Keep the provenance separate in the final response.
+
+## Tool Discovery Pattern
+
+- If the tool is already visible in the active tool list, call it directly.
+- If the user asks for a specific app/plugin/connector and the tool is not loaded, use `tool_search` before saying it is unavailable.
+- If `tool_search` finds a relevant tool, follow that tool's schema and any associated skill instructions.
+- If no tool is available, explain the gap and choose the safest fallback. Do not fabricate tool names, connector IDs, or readback results.
+
 ## Opt-In And Installation
 
 - Do not imply a connector is installed until the active tool list or `tool_search` proves it.
@@ -37,3 +119,11 @@ Read the relevant skill first when a plugin skill says it is mandatory for the o
 ## Expected Feel
 
 Connector routing should be quiet and practical: use the tool, verify the result, and report the outcome. Mention routing details only when they affect setup, permissions, evidence, or a limitation.
+
+## Official Codex Sources To Recheck
+
+- MCP and integrations overview: `https://developers.openai.com/codex/mcp`
+- Browser use: `https://developers.openai.com/codex/app/browser-use`
+- Chrome extension: `https://developers.openai.com/codex/app/chrome-extension`
+- Linear integration and local MCP: `https://developers.openai.com/codex/integrations/linear`
+- GitHub integration: `https://developers.openai.com/codex/integrations/github`

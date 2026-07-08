@@ -25,8 +25,12 @@ Please include privately:
 - Do not paste leaked or proprietary system prompts as project content.
 - Do not add commands that exfiltrate local files, environment variables, or connector data.
 - Keep provider bridge examples credential-free and clearly optional.
+- Treat `.codex-fable5/` as local-private working state. It can contain task evidence, file paths, and prompt snippets recorded by the user, so it is gitignored and should not be published.
+
+## Release Review
+
+Before release, maintainers should read `docs/SECURITY_PRIVACY_REVIEW.md`, rerun the release verification command, and confirm no local ledgers, provider configs, generated build output, or real-looking API key placeholders are staged.
 
 ## Disclosure
 
 Maintainers should acknowledge valid reports, prepare a fix on a private branch or local patch when possible, and publish a concise advisory or release note after users can update.
-

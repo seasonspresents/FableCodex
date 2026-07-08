@@ -30,6 +30,12 @@ TERMINAL_STATUSES = {"resolved", "rejected"}
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 FINDING_STATUSES = {"open", "blocked", "resolved", "rejected"}
 FINDING_REQUIRED_FIELDS = {"id", "goal", "title", "severity", "source", "status", "evidence"}
+STATUS_HELP = {
+    "open": "blocks final completion until resolved, rejected, or blocked with a reason",
+    "blocked": "waiting on external input; blocks final completion unless gate uses --allow-blocked",
+    "resolved": "closed with resolution and verification evidence",
+    "rejected": "closed as not actionable; does not block final completion",
+}
 
 
 def validate_findings(data: dict[str, Any], path: Path, label: str) -> dict[str, Any]:
@@ -316,6 +322,10 @@ def cmd_status(_: argparse.Namespace) -> None:
     if not summary:
         summary = "0 findings"
     print(f"codex-fable5: {summary}")
+    for status in ["open", "blocked", "resolved", "rejected"]:
+        count = counts[status]
+        if count:
+            print(f"  {status}: {STATUS_HELP[status]}")
 
 
 def build_parser() -> argparse.ArgumentParser:

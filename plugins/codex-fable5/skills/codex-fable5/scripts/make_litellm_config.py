@@ -19,6 +19,7 @@ def build_config(model: str, alias: str) -> str:
         [
             "# Example only. Replace the model with one that official Anthropic docs",
             "# and your account currently show as available.",
+            "# Do not commit real API keys.",
             "model_list:",
             "  - model_name: " + q(alias),
             "    litellm_params:",

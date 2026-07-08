@@ -166,6 +166,59 @@ class FindingsLedgerTests(ScriptTestBase):
             allow_blocked_gate = run(findings_script, "gate", "--allow-blocked")
             self.assertEqual(allow_blocked_gate.returncode, 0, allow_blocked_gate.stderr)
 
+    def test_findings_status_explains_state_meanings(self) -> None:
+        script = SCRIPTS / "codex_findings.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = Path(tmp)
+
+            def run(*args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(
+                    [sys.executable, str(script), *args],
+                    cwd=cwd,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+            self.assertEqual(
+                run("add", "--title", "Open issue", "--evidence", "Needs a fix.").returncode,
+                0,
+            )
+            self.assertEqual(
+                run("add", "--title", "Blocked issue", "--evidence", "Needs input.").returncode,
+                0,
+            )
+            self.assertEqual(run("block", "--id", "F002", "--reason", "Waiting on user.").returncode, 0)
+            self.assertEqual(
+                run("add", "--title", "Rejected issue", "--evidence", "Not reproducible.").returncode,
+                0,
+            )
+            self.assertEqual(run("reject", "--id", "F003", "--reason", "False positive.").returncode, 0)
+            self.assertEqual(
+                run("add", "--title", "Resolved issue", "--evidence", "Fixed.").returncode,
+                0,
+            )
+            self.assertEqual(
+                run(
+                    "resolve",
+                    "--id",
+                    "F004",
+                    "--evidence",
+                    "Fixed the issue.",
+                    "--verify-evidence",
+                    "Verification passed.",
+                ).returncode,
+                0,
+            )
+
+            status = run("status")
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn("1 open, 1 blocked, 1 resolved, 1 rejected", status.stdout)
+            self.assertIn("open: blocks final completion", status.stdout)
+            self.assertIn("blocked: waiting on external input", status.stdout)
+            self.assertIn("resolved: closed with resolution and verification evidence", status.stdout)
+            self.assertIn("rejected: closed as not actionable", status.stdout)
+
     def test_findings_parallel_adds_do_not_lose_entries(self) -> None:
         script = SCRIPTS / "codex_findings.py"
         with tempfile.TemporaryDirectory() as tmp:

@@ -9,6 +9,37 @@ This project uses a lightweight changelog format:
 - `Fixed` for bug fixes.
 - `Security` for vulnerability-related changes.
 
+## 0.6.0 - 2026-07-08
+
+### Added
+
+- Added `codex-fable5 doctor` / `healthcheck` diagnostics for package files, script imports, local state, stale locks, archived findings, and Codex plugin enablement.
+- Added `tools/codex_plugin_smoke.py` for live Codex runtime smoke tests across local, stable tag, and `main` marketplace install paths.
+- Added `tools/verify_release.py` as the one-command release verifier, including optional or required pinned upstream source validation.
+- Added `docs/CODEX_RUNTIME_COMPATIBILITY.md`, `docs/STATE_RECOVERY.md`, `docs/SECURITY_PRIVACY_REVIEW.md`, `docs/DOGFOOD_REPORT.md`, and `docs/releases/v0.6.0.md`.
+- Added copyable workflow examples, safer `AGENTS.md` adoption guidance, connector/MCP routing examples, and source-backed provider bridge guidance.
+
+### Changed
+
+- Updated English, Korean, Japanese, Simplified Chinese, and Traditional Chinese README install instructions for the verified Codex 0.128 marketplace flow and Desktop plugin enablement.
+- Improved goal ledger UX with clearer status labels, `goals summary`, final verification evidence output, and better failed/blocked story handling.
+- Improved findings status wording so open, blocked, resolved, and rejected findings communicate their gate behavior.
+- Updated release, contribution, CI, and pull request guidance to prefer the release verifier and pinned-source coverage validation.
+
+### Fixed
+
+- Removed the invalid `codex plugin add codex-fable5@fablecodex` path from current install guidance and documented the observed CLI error instead.
+- Added archive-first recovery guidance for corrupted local ledgers and interrupted forced plan replacement.
+- Corrected provider bridge examples to avoid implying that FableCodex grants model/provider access.
+
+### Security
+
+- Completed and documented the v0.6 security/privacy review before release.
+- Replaced a real-looking Anthropic key placeholder with a neutral placeholder and added tests to reject real-looking key patterns in user-facing files.
+- Hardened `codex-fable5 update --ref` by rejecting option-like refs before passing them to git.
+- Documented `.codex-fable5/` as local-private state and kept generated release/source artifacts out of git.
+- Verified CI pinned-source fetching uses a public pinned raw GitHub URL without an Authorization header.
+
 ## 0.5.1 - 2026-06-18
 
 ### Fixed

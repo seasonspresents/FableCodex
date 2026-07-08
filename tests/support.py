@@ -111,4 +111,5 @@ class ScriptTestBase(unittest.TestCase):
         cls.fable_coverage = load_script("fable_coverage")
         cls.codex_goals = load_script("codex_goals")
         cls.codex_findings = load_script("codex_findings")
+        cls.codex_doctor = load_script("codex_doctor")
         cls.make_litellm_config = load_script("make_litellm_config")

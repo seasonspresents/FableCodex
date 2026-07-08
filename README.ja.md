@@ -40,11 +40,12 @@ FableCodex は、Codex の作業に Fable 風の運用習慣を追加する Code
 安定版をインストールします。
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
-Codex を再起動してから、プロンプトで skill を呼び出します。
+その後、Codex Desktop の plugin marketplace UI で `codex-fable5@fablecodex` を install して enable します。`codex-cli 0.128.0` では plugin enablement は app-server/Desktop 経由で行われ、`codex plugin add` は public CLI subcommand ではありません。
+
+Codex を再起動するか plugin list を reload してから、プロンプトで skill を呼び出します。
 
 ```text
 @codex-fable5 この変更を実装してください。
@@ -129,6 +130,8 @@ unit test を実行し、残るリスクを報告してください。
 
 長い作業では、helper が `.codex-fable5/goals.json` にローカル状態を保存します。
 
+複数の dependent story がある作業、検証リスクが高い作業、review finding が最終完了をブロックすべき作業では ledger を使います。短い作業では local JSON ledger が重くなりすぎるため、通常の Codex plan で十分です。
+
 ```bash
 export PATH="$PWD/plugins/codex-fable5/bin:$PATH"
 
@@ -197,9 +200,11 @@ codex-fable5 findings gate
 | --- | --- |
 | `codex-fable5 status` | findings と goal の進捗を表示します。 |
 | `codex-fable5 version` | インストール済み plugin version、パス、git checkout 状態を表示します。 |
+| `codex-fable5 doctor` | インストール済み package、local state、Codex enablement hint を確認します。 |
 | `codex-fable5 update` | FableCodex checkout/plugin package を最新の安定版 `v*` tag に更新します。 |
 | `codex-fable5 goals create` | ローカルの multi-step goal ledger を作成します。 |
 | `codex-fable5 goals next` | 次の goal を開始または再開します。 |
+| `codex-fable5 goals summary` | 最終応答に使える progress、evidence、verification、findings-gate status を出力します。 |
 | `codex-fable5 goals checkpoint` | evidence 付きで goal を complete、failed、blocked にします。 |
 | `codex-fable5 findings add` | 根拠のあるレビュー finding を記録します。 |
 | `codex-fable5 findings next` | 優先度が最も高い open finding を表示します。 |
@@ -219,25 +224,30 @@ plugins/codex-fable5/bin/codex-fable5 status
 安定版:
 
 ```bash
-codex plugin marketplace add baskduf/FableCodex --ref v0.5.1
-codex plugin add codex-fable5@fablecodex
+codex plugin marketplace add baskduf/FableCodex --ref v0.6.0
 ```
 
 開発版:
 
 ```bash
 codex plugin marketplace add baskduf/FableCodex --ref main
-codex plugin add codex-fable5@fablecodex
 ```
 
 ローカル開発:
 
 ```bash
 codex plugin marketplace add ~/Desktop/FableCodex
-codex plugin add codex-fable5@fablecodex
 ```
 
-プラグインをインストールまたは更新した後は Codex を再起動してください。
+marketplace source を追加した後、Codex Desktop の plugin marketplace UI で `codex-fable5@fablecodex` を install して enable してください。plugin の install、enable、update 後は Codex を再起動するか plugin list を reload してください。
+
+## トラブルシューティング
+
+- marketplace を追加したのに `@codex-fable5` が使えない場合: Codex Desktop で `codex-fable5@fablecodex` を install して enable し、Codex を再起動するか plugin list を reload してください。
+- `codex plugin add` が `error: unrecognized subcommand 'add'` を返す場合: 検証済み Codex runtime では public CLI command ではありません。`codex plugin marketplace add ...` を使い、その後 Codex Desktop で plugin を enable してください。
+- enable 後も skill が loaded されない場合: Codex を再起動し、prompt が `@codex-fable5` を使っていることを確認してください。
+- `codex-fable5 update` が dirty checkout のため停止する場合: update 前に local change を commit、stash、または clean してください。
+- provider bridge が混乱する場合: FableCodex は workflow-only です。Fable、Anthropic、OpenAI、LiteLLM access は提供しません。optional bridge setup には、自分で用意した valid credential と authorized model access が必要です。
 
 ## ローカル状態
 

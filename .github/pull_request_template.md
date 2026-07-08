@@ -4,8 +4,8 @@
 
 ## Verification
 
-- [ ] `python3 -m unittest discover -s tests -v`
-- [ ] `python3 plugins/codex-fable5/skills/codex-fable5/scripts/fable_coverage.py`
+- [ ] `python3 tools/verify_release.py`
+- [ ] `python3 tools/verify_release.py --source-check required` for release or coverage-matrix changes
 - [ ] Documentation updated, if user-facing behavior changed
 
 ## Boundary Check

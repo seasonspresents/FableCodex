@@ -29,6 +29,14 @@ GOAL_STATUSES = {"pending", "in_progress", "complete", "failed", "blocked"}
 GOAL_REQUIRED_FIELDS = {"id", "title", "objective", "status", "evidence", "verify_cmd", "verify_evidence"}
 FINDING_STATUSES = {"open", "blocked", "resolved", "rejected"}
 FINDING_REQUIRED_FIELDS = {"id", "goal", "title", "severity", "source", "status", "evidence"}
+STATUS_LABELS = {
+    "complete": "complete",
+    "in_progress": "active",
+    "pending": "pending",
+    "failed": "failed",
+    "blocked": "blocked",
+}
+STATUS_ORDER = ["complete", "in_progress", "pending", "failed", "blocked"]
 
 
 def safe_stamp() -> str:
@@ -108,6 +116,15 @@ def incomplete_terminal_summary(goals: list[dict[str, Any]]) -> str:
     return ", ".join(f"{count} {status}" for status, count in counts.items() if count)
 
 
+def goal_status_counts(goals: list[dict[str, Any]]) -> str:
+    parts = []
+    for status in STATUS_ORDER:
+        count = sum(1 for goal in goals if goal["status"] == status)
+        if count:
+            parts.append(f"{count} {STATUS_LABELS[status]}")
+    return ", ".join(parts) if parts else "0 stories"
+
+
 def terminal_incomplete_goals(goals: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [goal for goal in goals if goal["status"] in INCOMPLETE_TERMINAL_STATUSES]
 
@@ -134,6 +151,32 @@ def blocking_findings() -> list[dict[str, Any]]:
         for finding in data.get("findings", [])
         if finding.get("status") in BLOCKING_FINDING_STATUSES
     ]
+
+
+def findings_summary() -> str:
+    if not FINDINGS_FILE.exists():
+        return "no findings ledger"
+    data = require_object(read_json(FINDINGS_FILE, "findings ledger"), FINDINGS_FILE, "findings ledger")
+    data = validate_findings(data, FINDINGS_FILE, "findings ledger")
+    findings = data.get("findings", [])
+    if not findings:
+        return "0 findings"
+    parts = []
+    for status in ["open", "blocked", "resolved", "rejected"]:
+        count = sum(1 for finding in findings if finding.get("status") == status)
+        if count:
+            parts.append(f"{count} {status}")
+    return ", ".join(parts)
+
+
+def checkpoint_command(goal_id: str, final: bool = False) -> str:
+    command = (
+        f"codex-fable5 goals checkpoint --id {goal_id} --status complete "
+        '--evidence "<evidence>"'
+    )
+    if final:
+        command += ' --verify-cmd "<command>" --verify-evidence "<result>"'
+    return command
 
 
 def cmd_create(args: argparse.Namespace) -> None:
@@ -184,17 +227,13 @@ def cmd_next(_: argparse.Namespace) -> None:
                 append_event("story_started", id=goal["id"], title=goal["title"])
 
         is_final = goal["id"] == plan["goals"][-1]["id"]
-        print(f"=== codex-fable5 handoff: {goal['id']} {goal['title']}")
+        print(f"=== {goal['id']} {goal['title']}")
         print(f"Objective: {goal['objective']}")
-        print("Rule: work this story only and produce concrete evidence.")
-        command = (
-            f"codex-fable5 goals checkpoint --id {goal['id']} --status complete "
-            '--evidence "<evidence>"'
-        )
+        print("Work this story only; checkpoint it with concrete evidence.")
         if is_final:
-            print("Final story: completion requires --verify-cmd and --verify-evidence.")
-            command += ' --verify-cmd "<command>" --verify-evidence "<result>"'
-        print(f"On completion: {command}")
+            print("Final story gate: include --verify-cmd and --verify-evidence, and ensure findings gate passes.")
+        print("Checkpoint command:")
+        print(f"  {checkpoint_command(goal['id'], is_final)}")
 
 
 def cmd_checkpoint(args: argparse.Namespace) -> None:
@@ -253,18 +292,38 @@ def cmd_status(_: argparse.Namespace) -> None:
     plan = load_plan()
     done = sum(1 for goal in plan["goals"] if goal["status"] == "complete")
     print(f"codex-fable5: {done}/{len(plan['goals'])} complete - {plan['brief']}")
-    markers = {
-        "complete": "done",
-        "in_progress": "active",
-        "pending": "pending",
-        "failed": "failed",
-        "blocked": "blocked",
-    }
+    print(f"status: {goal_status_counts(plan['goals'])}")
     for goal in plan["goals"]:
-        marker = markers.get(goal["status"], goal["status"])
+        marker = STATUS_LABELS.get(goal["status"], goal["status"])
         print(f"  {goal['id']} [{marker}] {goal['title']}")
         if goal.get("evidence"):
             print(f"    evidence: {goal['evidence']}")
+
+
+def cmd_summary(_: argparse.Namespace) -> None:
+    plan = load_plan()
+    goals = plan["goals"]
+    done = sum(1 for goal in goals if goal["status"] == "complete")
+    print("codex-fable5 summary")
+    print(f"Brief: {plan['brief']}")
+    print(f"Progress: {done}/{len(goals)} complete")
+    print(f"Status: {goal_status_counts(goals)}")
+    print("Stories:")
+    for goal in goals:
+        marker = STATUS_LABELS.get(goal["status"], goal["status"])
+        print(f"- {goal['id']} {marker} {goal['title']}: {goal['objective']}")
+        if goal.get("evidence"):
+            print(f"  evidence: {goal['evidence']}")
+        if goal.get("verify_cmd") or goal.get("verify_evidence"):
+            verify_cmd = goal.get("verify_cmd") or "not recorded"
+            verify_evidence = goal.get("verify_evidence") or "not recorded"
+            print(f"  verification: {verify_cmd} -> {verify_evidence}")
+    blocking = blocking_findings()
+    if blocking:
+        ids = ", ".join(str(finding.get("id", "?")) for finding in blocking)
+        print(f"Findings gate: {len(blocking)} blocking findings remain ({ids})")
+    else:
+        print(f"Findings gate: no blocking findings ({findings_summary()})")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -286,6 +345,7 @@ def build_parser() -> argparse.ArgumentParser:
     checkpoint.add_argument("--verify-evidence", dest="verify_evidence", default="")
 
     sub.add_parser("status")
+    sub.add_parser("summary")
     return parser
 
 
@@ -296,6 +356,7 @@ def main() -> int:
         "next": cmd_next,
         "checkpoint": cmd_checkpoint,
         "status": cmd_status,
+        "summary": cmd_summary,
     }
     handlers[args.command](args)
     return 0

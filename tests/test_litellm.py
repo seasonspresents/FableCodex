@@ -50,3 +50,24 @@ class LiteLLMConfigTests(ScriptTestBase):
         self.assertIn('model_name: "test-alias"', plain)
         self.assertIn('model: "anthropic/claude-test"', plain)
         self.assertEqual(plain, prefixed)
+
+    def test_litellm_config_quotes_yaml_strings_and_keeps_prefix_once(self) -> None:
+        config = self.make_litellm_config.build_config(
+            'anthropic/claude-"quoted"\\model',
+            'codex "alias"\\test',
+        )
+
+        self.assertIn('model_name: "codex \\"alias\\"\\\\test"', config)
+        self.assertIn('model: "anthropic/claude-\\"quoted\\"\\\\model"', config)
+        self.assertNotIn("anthropic/anthropic/", config)
+
+    def test_litellm_config_uses_placeholders_without_secrets(self) -> None:
+        config = self.make_litellm_config.build_config(
+            self.make_litellm_config.DEFAULT_MODEL,
+            "your-codex-model-alias",
+        )
+
+        self.assertIn('model: "anthropic/replace-with-current-anthropic-model"', config)
+        self.assertIn("api_key: os.environ/ANTHROPIC_API_KEY", config)
+        self.assertNotIn("sk-ant-", config)
+        self.assertNotIn("ANTHROPIC_API_KEY=", config)

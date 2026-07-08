@@ -1,4 +1,5 @@
 # Example only. Put provider routing in user-level ~/.codex/config.toml.
+# Do not commit real API keys or project-local provider routing secrets.
 # Replace placeholders with a model that official Anthropic docs and your account
 # currently show as available, and with the matching LiteLLM alias.
 

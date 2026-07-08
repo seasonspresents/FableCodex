@@ -1,5 +1,5 @@
 # Example only. Replace placeholders with a model that official Anthropic docs
-# and your account currently show as available.
+# and your account currently show as available. Do not commit real API keys.
 model_list:
   - model_name: "your-codex-model-alias"
     litellm_params:
